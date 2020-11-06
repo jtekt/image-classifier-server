@@ -20,7 +20,12 @@ app = Flask(__name__)
 CORS(app)
 
 MODEL_FOLDER_NAME = "model"
-model = keras.models.load_model(MODEL_FOLDER_NAME)
+model_loaded = False
+try:
+    model = keras.models.load_model(MODEL_FOLDER_NAME)
+    model_loaded = True
+except Exception as e:
+    pass
 
 # Environment variables
 IMAGE_WIDTH = os.getenv("IMAGE_WIDTH")
@@ -37,6 +42,7 @@ def home():
     'version': '1.0.0',
     'image_width': IMAGE_WIDTH,
     'image_height': IMAGE_HEIGHT,
+    'model_loaded': model_loaded,
 
     } )
 
@@ -79,7 +85,7 @@ def predict():
 
     # Preparing response as JSON
     response = json.dumps( {
-    'prediction': model_output_numpy.tolist(),
+    'predictions': model_output_numpy.tolist(),
     'model_version': MODEL_VERSION,
     'inference_time': inference_time,
     } )
