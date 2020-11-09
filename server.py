@@ -1,5 +1,6 @@
 '''
-Author: Maxime MOREILLON
+Image classifier server
+Maxime MOREILLON
 '''
 
 from flask import Flask, escape, request, jsonify
@@ -16,35 +17,56 @@ import time
 
 load_dotenv()
 
+# Environment variables
+IMAGE_WIDTH = os.getenv("IMAGE_WIDTH")
+IMAGE_HEIGHT = os.getenv("IMAGE_HEIGHT")
+MODEL_VERSION = os.getenv("MODEL_VERSION") or 'none'
+MODEL_NAME = os.getenv("MODEL_NAME") or 'none'
+
+normalize = True
+
+if os.getenv("NORMALIZE"):
+    if os.getenv("NORMALIZE").lower() == 'false':
+        normalize = False
+
 app = Flask(__name__)
 CORS(app)
 
+# Loading AI model
 MODEL_FOLDER_NAME = "model"
 model_loaded = False
 try:
     model = keras.models.load_model(MODEL_FOLDER_NAME)
     model_loaded = True
+    print('AI model loaded')
 except Exception as e:
-    pass
+    print('Failed to load the AI model')
 
-# Environment variables
-IMAGE_WIDTH = os.getenv("IMAGE_WIDTH")
-IMAGE_HEIGHT = os.getenv("IMAGE_HEIGHT")
-MODEL_VERSION = os.getenv("MODEL_VERSION") or 1
 
+def preprocess_image(image):
+    # Resizing
+    if IMAGE_WIDTH and IMAGE_HEIGHT:
+        image = cv2.resize(image, dsize=(int(IMAGE_WIDTH), int(IMAGE_HEIGHT)), interpolation=cv2.INTER_CUBIC)
+
+    # Normalization
+    if normalize:
+        image = image/255.00
+
+    return image
 
 @app.route('/', methods=['GET'])
 def home():
 
-    return json.dumps( {
+    return jsonify( {
     'applicationname': 'Image classifier server',
     'author': 'Maxime MOREILLON',
-    'version': '1.0.0',
+    'version': '1.0.3',
     'image_width': IMAGE_WIDTH,
     'image_height': IMAGE_HEIGHT,
+    'Normalization': normalize,
     'model_loaded': model_loaded,
-
     } )
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -61,37 +83,36 @@ def predict():
 
         image_numpy = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
 
-        # Image Preprocessing
-        if IMAGE_WIDTH and IMAGE_HEIGHT:
-            image_numpy = cv2.resize(image_numpy, dsize=(int(IMAGE_WIDTH), int(IMAGE_HEIGHT)), interpolation=cv2.INTER_CUBIC)
+        image_preprocessed = preprocess_image(image_numpy)
 
-        image_numpy = image_numpy/255.00
-
-        # Append to list
-        image_list.append(image_numpy)
+        image_list.append(image_preprocessed)
 
     # convert list to np array
     model_input = np.array(image_list)
 
-    inference_start = time.time()
+    inference_start_time = time.time()
 
-    # Prediction
-    model_output = model(model_input)
+    # AI Prediction
+    try:
+        model_output = model(model_input)
+    except Exception as e:
+        print('AI prediction failed: {}'.format(e))
+        return 'AI prediction failed: {}'.format(e), 500
 
-    inference_time = time.time() - inference_start
+    inference_time = time.time() - inference_start_time
 
     # converting output to numpy array
     model_output_numpy = model_output.numpy()
 
-    # Preparing response as JSON
-    response = json.dumps( {
-    'predictions': model_output_numpy.tolist(),
-    'model_version': MODEL_VERSION,
-    'inference_time': inference_time,
-    } )
+    print('AI predictions: {}'.format(model_output_numpy.tolist()))
 
     # Sending response
-    return response
+    return jsonify( {
+    'predictions': model_output_numpy.tolist(),
+    'inference_time': inference_time,
+    'model_version': MODEL_VERSION,
+    'model_name': MODEL_NAME,
+    } )
 
 
 if __name__ == '__main__':
