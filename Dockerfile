@@ -1,5 +1,6 @@
 # Using a prebuilt image to save on building time
-FROM python:3.8
+#FROM python:3.8
+FROM jjanzic/docker-python3-opencv
 
 # Create app directory and move into it
 WORKDIR /usr/src/app

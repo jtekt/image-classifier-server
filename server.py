@@ -24,13 +24,11 @@ MODEL_VERSION = os.getenv("MODEL_VERSION") or 'none'
 MODEL_NAME = os.getenv("MODEL_NAME") or 'none'
 
 normalize = True
-
 if os.getenv("NORMALIZE"):
     if os.getenv("NORMALIZE").lower() == 'false':
         normalize = False
 
-app = Flask(__name__)
-CORS(app)
+
 
 # Loading AI model
 MODEL_FOLDER_NAME = "model"
@@ -42,6 +40,9 @@ try:
 except Exception as e:
     print('Failed to load the AI model')
 
+# Flask app
+app = Flask(__name__)
+CORS(app)
 
 def preprocess_image(image):
     # Resizing
@@ -80,11 +81,8 @@ def predict():
     image_list = []
 
     for key, file in request.files.items():
-
         image_numpy = cv2.imdecode(np.fromstring(file.read(), np.uint8), cv2.IMREAD_UNCHANGED)
-
         image_preprocessed = preprocess_image(image_numpy)
-
         image_list.append(image_preprocessed)
 
     # convert list to np array
