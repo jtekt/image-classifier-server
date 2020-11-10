@@ -59,9 +59,11 @@ def preprocess_image(image):
 def home():
 
     return jsonify( {
-    'applicationname': 'Image classifier server',
+    'application_name': 'Image classifier server',
     'author': 'Maxime MOREILLON',
-    'version': '1.0.3',
+    'version': '1.0.4',
+    'model_name': MODEL_NAME,
+    'model_version': MODEL_VERSION,
     'image_width': IMAGE_WIDTH,
     'image_height': IMAGE_HEIGHT,
     'Normalization': normalize,
