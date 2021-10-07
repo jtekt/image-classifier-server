@@ -1,9 +1,11 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from classifier import classifier
+from classifier import Classifier
 
 load_dotenv()
+
+classifier = Classifier()
 
 app = FastAPI()
 
@@ -27,8 +29,3 @@ async def root():
 async def predict(image: UploadFile = File (...)):
     result = await classifier.predict(image)
     return result
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=7070, reload=True)

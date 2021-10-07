@@ -52,7 +52,3 @@ class Classifier:
         'prediction': output,
         'inference_time': inference_time,
         }
-
-
-
-classifier = Classifier()
