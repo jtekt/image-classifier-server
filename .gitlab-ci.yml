@@ -1,5 +1,5 @@
 variables:
-  APPLICATION_NAME: image-classifier-server
+  APPLICATION_NAME: image-classifier-server-fastapi
   CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
 
 containerization:
