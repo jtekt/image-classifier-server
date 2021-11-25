@@ -2,3 +2,5 @@ tensorflow
 fastapi
 uvicorn
 python-multipart
+opencv-python
+python-dotenv

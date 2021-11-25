@@ -1,9 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from classifier import Classifier
-
-load_dotenv()
 
 classifier = Classifier()
 
