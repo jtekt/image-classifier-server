@@ -2,7 +2,7 @@
 
 ## Example Dockerfile to use this server
 ```
-FROM the-registry/image-classifier-server
+FROM moreillon/image-classifier-server-fastapi
 COPY path-to-your-model ./model
 
 ```
