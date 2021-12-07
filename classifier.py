@@ -28,7 +28,10 @@ class Classifier:
          return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     def image_prepropcessing(self, image):
-        # Resizing
+        # Resizing if needed
+        if self.image_width is None or self.image_height is None
+            return image
+
         target_size = (int(self.image_width), int(self.image_height))
         image_resized = cv2.resize(image, dsize=target_size, interpolation=cv2.INTER_CUBIC)
 
