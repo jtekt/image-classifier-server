@@ -19,6 +19,7 @@ async def root():
     return {
     "application_name": "image classifier (Fast API)",
     "author": "Maxime MOREILLON",
+    "resize": classifier.resize,
     }
 
 

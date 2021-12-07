@@ -12,8 +12,10 @@ class Classifier:
 
     def __init__(self):
         self.model_path = "model"
-        self.image_width = getenv("IMAGE_WIDTH")
-        self.image_height = getenv("IMAGE_HEIGHT")
+        self.resize = {
+            'width': getenv("RESIZE_WIDTH"),
+            'height': getenv("RESIZE_HEIGHT"),
+        }
         self.load_model()
 
     def load_model(self):
@@ -29,10 +31,10 @@ class Classifier:
 
     def image_prepropcessing(self, image):
         # Resizing if needed
-        if self.image_width is None or self.image_height is None
+        if self.resize['width'] is None or self.resize['height'] is None:
             return image
 
-        target_size = (int(self.image_width), int(self.image_height))
+        target_size = (int(self.resize['width']), int(self.resize['height']))
         image_resized = cv2.resize(image, dsize=target_size, interpolation=cv2.INTER_CUBIC)
 
         return image_resized
