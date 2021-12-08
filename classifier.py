@@ -16,6 +16,7 @@ class Classifier:
             'width': getenv("RESIZE_WIDTH"),
             'height': getenv("RESIZE_HEIGHT"),
         }
+        self.classes = getenv("CLASSES")
         self.load_model()
 
     def load_model(self):
@@ -39,6 +40,18 @@ class Classifier:
 
         return image_resized
 
+    def class_naming(self, output):
+        # Name output if possible
+
+        if self.classes is None:
+            return output
+
+        classes = self.classes.split(',')
+        max_index = output.index(max(output))
+        name = classes[max_index]
+
+        return name
+
     async def predict(self, file):
 
         inference_start_time = time()
@@ -52,8 +65,12 @@ class Classifier:
 
         inference_time = time() - inference_start_time
 
+        output_named = self.class_naming(output)
+
+        print(f'Prediction: {output_named}')
+
 
         return {
-        'prediction': output,
+        'prediction': output_named,
         'inference_time': inference_time,
         }
