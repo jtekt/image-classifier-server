@@ -28,11 +28,14 @@ class Classifier:
     async def load_image_from_request(self, file):
          img_data = await file.read()
          nparr = np.frombuffer(img_data, np.uint8)
-         return cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+         decoded_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+         #cv2.imwrite('image.jpg', decoded_image)
+         return decoded_image
 
     def image_prepropcessing(self, image):
         # Resizing if needed
         if self.resize['width'] is None or self.resize['height'] is None:
+            print('[Preprocessing] Skipping resize')
             return image
 
         target_size = (int(self.resize['width']), int(self.resize['height']))
@@ -67,7 +70,7 @@ class Classifier:
 
         output_named = self.class_naming(output)
 
-        print(f'Prediction: {output_named}')
+        print(f'[AI] Prediction: {output_named}')
 
 
         return {
