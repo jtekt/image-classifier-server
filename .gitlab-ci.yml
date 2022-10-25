@@ -4,8 +4,10 @@ variables:
 
 build:
   stage: build
+  only:
+    - master
   tags:
-    - "x86"
+    - x86
   script:
     - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
     - docker build -t ${CONTAINER_IMAGE} .
