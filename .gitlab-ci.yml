@@ -1,0 +1,13 @@
+variables:
+  APPLICATION_NAME: image-classifier-server-fastapi
+  CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
+
+build:
+  stage: build
+  tags:
+    - "x86"
+  script:
+    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    - docker build -t ${CONTAINER_IMAGE} .
+    - docker push ${CONTAINER_IMAGE}
+    - docker image rm ${CONTAINER_IMAGE}
