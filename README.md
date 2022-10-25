@@ -1,5 +1,11 @@
 # Image classifier server
 
-This is an API for image classification AI models.
+This is an image classificatier server which can take any exported Keras AI model and expose it through an HTTP API.
 
-Images are passed in a multipart/form-data HTTP request to /predict and classification results are returned as JSON.
+## Usage examples
+
+### Using dedicated Dockerfile
+```
+FROM moreillon/image-classifier-server-fastapi
+COPY path-to-your-model ./model
+```

@@ -1,8 +1,6 @@
-flask
-flask_cors
-requests
-python-dotenv
-gunicorn
-#opencv-python
-numpy
 tensorflow
+fastapi
+uvicorn
+python-multipart
+opencv-python
+python-dotenv
