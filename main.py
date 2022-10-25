@@ -17,7 +17,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {
-    "application_name": "image classifier (Fast API)",
+    "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
     "resize": classifier.resize,
     }
