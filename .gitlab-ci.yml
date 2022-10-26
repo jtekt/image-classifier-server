@@ -13,7 +13,7 @@ variables:
   CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
   CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CONTAINER_TAG}
 
-build-x86:
+build-x86-cpu:
   stage: build
   only:
     - master
@@ -22,7 +22,7 @@ build-x86:
   before_script:
     - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
   script:
-    - docker build -t ${CONTAINER_IMAGE} .
+    - docker build -t ${CONTAINER_IMAGE} -f ./Dockerfile-cpu
     - docker tag ${CONTAINER_IMAGE} ${CONTAINER_IMAGE_TAGGED}
     - docker push ${CONTAINER_IMAGE}
     - docker push ${CONTAINER_IMAGE_TAGGED}
