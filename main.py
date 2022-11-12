@@ -22,9 +22,8 @@ async def root():
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
     "resize": classifier.resize,
+    "modelLoaded": classifer.model_loaded,
     }
-
-
 
 @app.post("/predict")
 async def predict(image: UploadFile = File (...)):

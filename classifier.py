@@ -17,12 +17,21 @@ class Classifier:
             'height': getenv("RESIZE_HEIGHT"),
         }
         self.classes = getenv("CLASSES")
+        self.model_loaded = False
         self.load_model()
 
     def load_model(self):
-        print('[AI] Loading model...')
-        self.model = keras.models.load_model(self.model_path)
-        print('[AI] Model loaded')
+
+        try:
+            print('[AI] Loading model...')
+            self.model = keras.models.load_model(self.model_path)
+            print('[AI] Model loaded')
+            self.model_loaded = True
+        except:
+            print('[AI] Failed to load model')
+            self.model_loaded = False
+
+        
 
 
     async def load_image_from_request(self, file):

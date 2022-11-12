@@ -14,3 +14,10 @@ This is an image classificatier server which can take any exported Keras AI mode
 FROM moreillon/image-classifier-server-fastapi
 COPY path-to-your-model ./model
 ```
+
+### Running in a development environment
+
+```
+uvicorn main:app --reload --port 7071 --host 0.0.0.0
+
+```
