@@ -11,7 +11,7 @@ load_dotenv()
 class Classifier:
 
     def __init__(self):
-        self.model_path = "model"
+        self.model_path = "./model"
         self.resize = {
             'width': getenv("RESIZE_WIDTH"),
             'height': getenv("RESIZE_HEIGHT"),
