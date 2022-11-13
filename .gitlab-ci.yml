@@ -34,7 +34,7 @@ build:
       ${CONTAINER_REGISTRY_URL}
   script:
     # Build the container image
-    - docker build -t ${CONTAINER_IMAGE} .
+    - docker build -t ${CONTAINER_IMAGE} -f ./Dockerfile-cpu .
     - docker tag ${CONTAINER_IMAGE} ${CONTAINER_IMAGE_TAGGED}
     # Build and push container image to registry
     - docker push ${CONTAINER_IMAGE}
