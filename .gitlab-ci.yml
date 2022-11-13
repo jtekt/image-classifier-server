@@ -33,8 +33,6 @@ build:
       ${CONTAINER_REGISTRY_URL}
   script:
     # Build the container image
-    - docker build -t ${CONTAINER_IMAGE_TAGGED} .
+    - docker build -t ${CONTAINER_IMAGE} -f ./Dockerfile-cpu .
     # Build and push container image to registry
     - docker push ${CONTAINER_IMAGE_TAGGED}
-    # Cleanup
-    - docker image rm ${CONTAINER_IMAGE_TAGGED}
