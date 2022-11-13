@@ -24,6 +24,7 @@ async def root():
     "preprocessing": {
         "resize": classifier.resize,
     },
+    "classes": classifier.classes,
     
     "modelLoaded": classifier.model_loaded,
     }

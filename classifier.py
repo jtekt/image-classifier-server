@@ -1,10 +1,10 @@
 from tensorflow import keras
 import numpy as np
 import cv2
-from os import getenv
+from os import getenv, path
 from dotenv import load_dotenv
 from time import time
-
+import json
 
 load_dotenv()
 
@@ -16,23 +16,40 @@ class Classifier:
             'width': getenv("RESIZE_WIDTH"),
             'height': getenv("RESIZE_HEIGHT"),
         }
-        self.classes = getenv("CLASSES")
+        self.classes = None
+
+        if getenv("CLASSES"):
+            self.classes = getenv("CLASSES").split(',')
+
         self.model_loaded = False
         self.load_model()
 
+    def readModelInfo(self):
+        file_path = path.join(self.model_path, 'modelInfo.json')
+        with open(file_path, 'r') as openfile:
+            return json.load(openfile)
+
     def load_model(self):
 
+        # The loading of the model itself
         try:
             print('[AI] Loading model...')
             self.model = keras.models.load_model(self.model_path)
             print('[AI] Model loaded')
+
             self.model_loaded = True
         except:
             print('[AI] Failed to load model')
             self.model_loaded = False
 
-        
-
+        # Trying to get model info from .json file
+        # TODO: More than just classes
+        try:
+            modelInfo = self.readModelInfo()
+            if 'class_names' in modelInfo:
+                self.classes = modelInfo['class_names']
+        except:
+            print('[AI] Failed to load model information')
 
     async def load_image_from_request(self, file):
          img_data = await file.read()
@@ -58,9 +75,8 @@ class Classifier:
         if self.classes is None:
             return output
 
-        classes = self.classes.split(',')
         max_index = output.index(max(output))
-        name = classes[max_index]
+        name = self.classes[max_index]
 
         return name
 
