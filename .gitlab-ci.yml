@@ -1,7 +1,7 @@
 stages:
   - build
 
-image: moreillon/ci-dind:4bca50d7
+image: moreillon/tdd-dind
 services:
   - name: docker:19.03.12-dind
 
@@ -35,4 +35,4 @@ build:
     # Build the container image
     - docker build -t ${CONTAINER_IMAGE} -f ./Dockerfile-cpu .
     # Build and push container image to registry
-    - docker push ${CONTAINER_IMAGE_TAGGED}
+    - docker push ${CONTAINER_IMAGE_TAGGED}y
