@@ -1,57 +1,70 @@
+import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import cv2
-from os import getenv
+from os import getenv, path
 from dotenv import load_dotenv
 from time import time
-
+import json
+import io
 
 load_dotenv()
 
 class Classifier:
 
     def __init__(self):
-        self.model_path = "model"
-        self.resize = {
-            'width': getenv("RESIZE_WIDTH"),
-            'height': getenv("RESIZE_HEIGHT"),
-        }
-        self.classes = getenv("CLASSES")
+        self.model_path = "./model"
+        self.model_loaded = False
+
+        # Attribute to hold additional information regarding the model
+        self.model_info = {  }
+
+        if getenv('CLASSES'):
+            self.model_info['classe_names'] = getenv("CLASSES").split(',')
+
         self.load_model()
 
+    def readModelInfo(self):
+        file_path = path.join(self.model_path, 'modelInfo.json')
+        with open(file_path, 'r') as openfile:
+            return json.load(openfile)
+
     def load_model(self):
-        print('[AI] Loading model...')
-        self.model = keras.models.load_model(self.model_path)
-        print('[AI] Model loaded')
+
+        # The loading of the model itself
+        try:
+            print('[AI] Loading model...')
+            self.model = keras.models.load_model(self.model_path)
+            print('[AI] Model loaded')
+
+            self.model_loaded = True
+        except:
+            print('[AI] Failed to load model')
+            self.model_loaded = False
+
+        # Trying to get model info from .json file
+        # TODO: More than just classes
+        try:
+            jsonModelInfo = self.readModelInfo()
+            self.model_info = {**self.model_info, **jsonModelInfo}
+            
+        except:
+            print('[AI] Failed to load .json model information')
 
 
     async def load_image_from_request(self, file):
-         img_data = await file.read()
-         nparr = np.frombuffer(img_data, np.uint8)
-         decoded_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-         #cv2.imwrite('image.jpg', decoded_image)
-         return decoded_image
+        fileBuffer = io.BytesIO(file)
+        # TODO: resize if model settings require it
+        img = keras.preprocessing.image.load_img( fileBuffer, target_size=None)
+        img_array = keras.preprocessing.image.img_to_array(img)
+        return tf.expand_dims(img_array, 0)  # Create batch axis
 
-    def image_prepropcessing(self, image):
-        # Resizing if needed
-        if self.resize['width'] is None or self.resize['height'] is None:
-            print('[Preprocessing] Skipping resize')
-            return image
 
-        target_size = (int(self.resize['width']), int(self.resize['height']))
-        image_resized = cv2.resize(image, dsize=target_size, interpolation=cv2.INTER_CUBIC)
-
-        return image_resized
-
-    def class_naming(self, output):
+    def get_class_name(self, prediction):
         # Name output if possible
 
-        if self.classes is None:
-            return output
-
-        classes = self.classes.split(',')
-        max_index = output.index(max(output))
-        name = classes[max_index]
+        max_index = np.argmax(prediction)
+        name = self.model_info['class_names'][max_index]
 
         return name
 
@@ -59,21 +72,26 @@ class Classifier:
 
         inference_start_time = time()
 
+        model_input = await self.load_image_from_request(file)
 
-        img = await self.load_image_from_request(file)
-        img_processed = self.image_prepropcessing(img)
-        input = np.array([img_processed])
-        output_tensor = self.model(input)
-        output = output_tensor.numpy().tolist()[0]
+        model_output = self.model.predict(model_input)
+
+        prediction = model_output[0]
 
         inference_time = time() - inference_start_time
 
-        output_named = self.class_naming(output)
-
-        print(f'[AI] Prediction: {output_named}')
-
-
-        return {
-        'prediction': output_named,
-        'inference_time': inference_time,
+        response = {
+            'prediction': prediction.tolist(),
+            'inference_time': inference_time
         }
+
+
+
+        # Add class name if class names available
+        if 'class_names' in self.model_info:
+            print('MODEL INFO HAS CLASSES')
+            response['class_name'] = self.get_class_name(prediction)
+
+        print(f'[AI] Prediction: {prediction}')
+
+        return response
