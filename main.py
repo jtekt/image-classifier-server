@@ -21,9 +21,9 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "classes": classifier.classes,
-    "classifier_server_version": "0.2.1",
-    "modelLoaded": classifier.model_loaded,
+    "version": "0.2.2",
+    "model_loaded": classifier.model_loaded,
+    'model_info': {**classifier.model_info}
     }
 
 @app.post("/predict")

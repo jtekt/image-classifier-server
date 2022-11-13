@@ -14,12 +14,14 @@ class Classifier:
 
     def __init__(self):
         self.model_path = "./model"
-        self.classes = None
-
-        if getenv("CLASSES"):
-            self.classes = getenv("CLASSES").split(',')
-
         self.model_loaded = False
+
+        # Attribute to hold additional information regarding the model
+        self.model_info = {  }
+
+        if getenv('CLASSES'):
+            self.model_info['classe_names'] = getenv("CLASSES").split(',')
+
         self.load_model()
 
     def readModelInfo(self):
@@ -43,11 +45,11 @@ class Classifier:
         # Trying to get model info from .json file
         # TODO: More than just classes
         try:
-            modelInfo = self.readModelInfo()
-            if 'class_names' in modelInfo:
-                self.classes = modelInfo['class_names']
+            jsonModelInfo = self.readModelInfo()
+            self.model_info = {**self.model_info, **jsonModelInfo}
+            
         except:
-            print('[AI] Failed to load model information')
+            print('[AI] Failed to load .json model information')
 
 
     async def load_image_from_request(self, file):
@@ -58,11 +60,11 @@ class Classifier:
         return tf.expand_dims(img_array, 0)  # Create batch axis
 
 
-    def get_class_name(self, output):
+    def get_class_name(self, prediction):
         # Name output if possible
 
-        max_index = np.argmax(output)
-        name = self.classes[max_index]
+        max_index = np.argmax(prediction)
+        name = self.model_info['class_names'][max_index]
 
         return name
 
@@ -83,9 +85,12 @@ class Classifier:
             'inference_time': inference_time
         }
 
+
+
         # Add class name if class names available
-        if self.classes :
-            response['predicted_class'] = self.get_class_name(prediction)
+        if 'class_names' in self.model_info:
+            print('MODEL INFO HAS CLASSES')
+            response['class_name'] = self.get_class_name(prediction)
 
         print(f'[AI] Prediction: {prediction}')
 
