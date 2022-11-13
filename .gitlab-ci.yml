@@ -1,28 +1,40 @@
 stages:
   - build
 
-
-image: moreillon/tdd-dind
-
+image: moreillon/ci-dind:4bca50d7
 services:
   - name: docker:19.03.12-dind
 
-variables:
-  APPLICATION_NAME: image-classifier-server-fastapi
-  CONTAINER_TAG: ${CI_COMMIT_SHORT_SHA}
-  CONTAINER_IMAGE: ${DOCKER_HUB_USERNAME}/${APPLICATION_NAME}
-  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CONTAINER_TAG}
 
-build-x86-cpu:
+variables:
+  APPLICATION_NAME: image-classifier-server
+  CONTAINER_REGISTRY_URL: 732469118990.dkr.ecr.ap-northeast-1.amazonaws.com
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_REGISTRY_URL}/${APPLICATION_NAME}:${CI_COMMIT_SHORT_SHA}
+  K8S_ECR_SECRET_NAME: ecr-credentials
+  K8S_NODEPORT: 31262
+
+build:
   stage: build
   only:
     - master
   tags:
     - dind
   before_script:
-    - echo "${DOCKER_HUB_PASSWORD}" | docker login --username ${DOCKER_HUB_USERNAME} --password-stdin
+    # Create repository if needed
+    - >
+      aws ecr create-repository --repository-name ${APPLICATION_NAME}
+      || echo "Repository might have already existed"
+    # Log in to the registry (AWS credentials are stored as GitLab env variables)
+    - >
+      aws ecr get-login-password
+      | docker login
+      --username AWS
+      --password-stdin
+      ${CONTAINER_REGISTRY_URL}
   script:
-    - docker build -t ${CONTAINER_IMAGE} -f ./Dockerfile-cpu .
-    - docker tag ${CONTAINER_IMAGE} ${CONTAINER_IMAGE_TAGGED}
-    - docker push ${CONTAINER_IMAGE}
+    # Build the container image
+    - docker build -t ${CONTAINER_IMAGE_TAGGED} .
+    # Build and push container image to registry
     - docker push ${CONTAINER_IMAGE_TAGGED}
+    # Cleanup
+    - docker image rm ${CONTAINER_IMAGE_TAGGED}
