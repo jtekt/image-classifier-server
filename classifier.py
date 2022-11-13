@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import cv2
@@ -5,6 +6,7 @@ from os import getenv, path
 from dotenv import load_dotenv
 from time import time
 import json
+import io
 
 load_dotenv()
 
@@ -12,10 +14,6 @@ class Classifier:
 
     def __init__(self):
         self.model_path = "./model"
-        self.resize = {
-            'width': getenv("RESIZE_WIDTH"),
-            'height': getenv("RESIZE_HEIGHT"),
-        }
         self.classes = None
 
         if getenv("CLASSES"):
@@ -51,31 +49,19 @@ class Classifier:
         except:
             print('[AI] Failed to load model information')
 
+
     async def load_image_from_request(self, file):
-         img_data = await file.read()
-         nparr = np.frombuffer(img_data, np.uint8)
-         decoded_image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-         #cv2.imwrite('image.jpg', decoded_image)
-         return decoded_image
+        fileBuffer = io.BytesIO(file)
+        # TODO: resize if model settings require it
+        img = keras.preprocessing.image.load_img( fileBuffer, target_size=None)
+        img_array = keras.preprocessing.image.img_to_array(img)
+        return tf.expand_dims(img_array, 0)  # Create batch axis
 
-    def image_prepropcessing(self, image):
-        # Resizing if needed
-        if self.resize['width'] is None or self.resize['height'] is None:
-            print('[Preprocessing] Skipping resize')
-            return image
 
-        target_size = (int(self.resize['width']), int(self.resize['height']))
-        image_resized = cv2.resize(image, dsize=target_size, interpolation=cv2.INTER_CUBIC)
-
-        return image_resized
-
-    def class_naming(self, output):
+    def get_class_name(self, output):
         # Name output if possible
 
-        if self.classes is None:
-            return output
-
-        max_index = output.index(max(output))
+        max_index = np.argmax(output)
         name = self.classes[max_index]
 
         return name
@@ -84,21 +70,23 @@ class Classifier:
 
         inference_start_time = time()
 
+        model_input = await self.load_image_from_request(file)
 
-        img = await self.load_image_from_request(file)
-        img_processed = self.image_prepropcessing(img)
-        input = np.array([img_processed])
-        output_tensor = self.model(input)
-        output = output_tensor.numpy().tolist()[0]
+        model_output = self.model.predict(model_input)
+
+        prediction = model_output[0]
 
         inference_time = time() - inference_start_time
 
-        output_named = self.class_naming(output)
-
-        print(f'[AI] Prediction: {output_named}')
-
-
-        return {
-        'prediction': output_named,
-        'inference_time': inference_time,
+        response = {
+            'prediction': prediction.tolist(),
+            'inference_time': inference_time
         }
+
+        # Add class name if class names available
+        if self.classes :
+            response['predicted_class'] = self.get_class_name(prediction)
+
+        print(f'[AI] Prediction: {prediction}')
+
+        return response

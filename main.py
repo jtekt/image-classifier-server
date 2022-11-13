@@ -21,16 +21,13 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "preprocessing": {
-        "resize": classifier.resize,
-    },
     "classes": classifier.classes,
-    
+    "classifier_server_version": "0.2.1",
     "modelLoaded": classifier.model_loaded,
     }
 
 @app.post("/predict")
-async def predict(image: UploadFile = File (...)):
+async def predict(image: bytes = File()):
     result = await classifier.predict(image)
     return result
 
