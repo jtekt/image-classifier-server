@@ -54,8 +54,13 @@ class Classifier:
 
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)
-        # TODO: resize if model settings require it
-        img = keras.preprocessing.image.load_img( fileBuffer, target_size=None)
+
+        target_size = None
+        if 'input_size' in self.model_info:
+            # TODO: DOUBLE CHECK IF HEIGHT FIRST OR WIDTH FIRST
+            target_size = (self.model_info['input_size']['height'], self.model_info['input_size']['width'])
+
+        img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)
         return tf.expand_dims(img_array, 0)  # Create batch axis
 
