@@ -19,8 +19,15 @@ class Classifier:
         # Attribute to hold additional information regarding the model
         self.model_info = {  }
 
-        if getenv('CLASSES'):
-            self.model_info['classe_names'] = getenv("CLASSES").split(',')
+        # Setting model parameters using env
+        if getenv('CLASS_NAMES'):
+            print('Classes set from env')
+            self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
+        
+        if getenv('INPUT_HEIGHT') and getenv('INPUT_WIDTH') :
+            print('Input size set from env')
+            self.model_info['input_size']['height'] = getenv("INPUT_HEIGHT")
+            self.model_info['input_size']['width'] = getenv("INPUT_WIDTH")
 
         self.load_model()
 
