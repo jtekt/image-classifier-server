@@ -49,8 +49,7 @@ class Classifier:
             print('[AI] Failed to load model')
             self.model_loaded = False
 
-        # Trying to get model info from .json file
-        # TODO: More than just classes
+        # Get model info from .json file
         try:
             jsonModelInfo = self.readModelInfo()
             self.model_info = {**self.model_info, **jsonModelInfo}
@@ -85,9 +84,7 @@ class Classifier:
         inference_start_time = time()
 
         model_input = await self.load_image_from_request(file)
-
         model_output = self.model.predict(model_input)
-
         prediction = model_output[0]
 
         inference_time = time() - inference_start_time

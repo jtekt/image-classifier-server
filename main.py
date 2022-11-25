@@ -10,8 +10,8 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
     allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -21,7 +21,7 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info}
     }
