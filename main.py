@@ -1,8 +1,10 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+import tensorflow as tf
 from classifier import Classifier
 import zipfile
 import io
+import sys
 
 classifier = Classifier()
 
@@ -23,7 +25,11 @@ async def root():
     "author": "Maxime MOREILLON",
     "version": "0.2.4",
     "model_loaded": classifier.model_loaded,
-    'model_info': {**classifier.model_info}
+    'model_info': {**classifier.model_info},
+    'versions': {
+        'python': sys.version,
+        'tensorflow': tf.__version__
+    }
     }
 
 @app.post("/predict")
