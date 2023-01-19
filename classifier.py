@@ -37,6 +37,8 @@ class Classifier:
             return json.load(openfile)
 
     def load_model(self):
+        # TODO: Throw an error if the model cannot be loaded
+        # Note: This will make the container crash if function called outside of FastAPI
 
         # The loading of the model itself
         try:

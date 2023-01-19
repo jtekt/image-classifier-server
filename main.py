@@ -21,7 +21,7 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info}
     }
@@ -36,5 +36,6 @@ async def upload_model(model: bytes = File()):
     fileBuffer = io.BytesIO(model)
     with zipfile.ZipFile(fileBuffer) as zip_ref:
         zip_ref.extractall('./model')
-        classifier.load_model()
-        return {"file_size": len(model)}
+        
+    classifier.load_model()
+    return {"file_size": len(model)}
