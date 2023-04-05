@@ -1,5 +1,6 @@
 stages:
   - build
+  - deploy
 
 image: moreillon/tdd-dind
 services:
@@ -7,19 +8,21 @@ services:
 
 variables:
   APPLICATION_NAME: image-classifier-server
-  CONTAINER_IMAGE_TAGGED_CPU: ${AWS_ECR_PUBLIC_URL}/${APPLICATION_NAME}:cpu-${CI_COMMIT_SHORT_SHA}
-  CONTAINER_IMAGE_TAGGED_GPU: ${AWS_ECR_PUBLIC_URL}/${APPLICATION_NAME}:gpu-${CI_COMMIT_SHORT_SHA}
 
-build-cpu:
+  CONTAINER_IMAGE: ${AWS_ECR_PUBLIC_URL}/${APPLICATION_NAME}
+  CONTAINER_IMAGE_TAGGED_CPU: ${CONTAINER_IMAGE}:cpu-${CI_COMMIT_SHORT_SHA}
+  CONTAINER_IMAGE_TAGGED_GPU: ${CONTAINER_IMAGE}:gpu-${CI_COMMIT_SHORT_SHA}
+
+  K8S_NODEPORT: 30871
+
+cpu:
   stage: build
   only:
     - master
   tags:
     - dind
   before_script:
-    # Registry login
     - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
-    # Create repository in ECR if it does not exist yet
     - >
       aws ecr-public create-repository --region us-east-1 --repository-name ${APPLICATION_NAME}
       || echo "Repository might have already existed"
@@ -27,7 +30,7 @@ build-cpu:
     - docker build -t ${CONTAINER_IMAGE_TAGGED_CPU} -f ./Dockerfile-cpu .
     - docker push ${CONTAINER_IMAGE_TAGGED_CPU}
 
-build-gpu:
+gpu:
   stage: build
   only:
     - master
@@ -43,3 +46,17 @@ build-gpu:
   script:
     - docker build -t ${CONTAINER_IMAGE_TAGGED_GPU} -f ./Dockerfile-gpu .
     - docker push ${CONTAINER_IMAGE_TAGGED_GPU}
+
+deploy:
+  stage: deploy
+  only:
+    - master
+    - main
+  tags:
+    - internal
+  script:
+    - envsubst < kubernetes_manifest.yml | kubectl apply -f -
+  environment:
+    name: production
+    kubernetes:
+      namespace: ${K8S_NAMESPACE}
