@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import gpuAvailable
+from utils import getGpus
 import zipfile
 import io
 import sys
@@ -19,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-gpuAvailable()
 
 @app.get("/")
 async def root():
@@ -29,6 +28,7 @@ async def root():
     "version": "0.2.5",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
+    'gpu': len(getGpus()),
     'versions': {
         'python': sys.version,
         'tensorflow': tf.__version__
