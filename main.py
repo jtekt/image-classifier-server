@@ -1,8 +1,8 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
-from tensorflow.python.client import device_lib
 from classifier import Classifier
+from utils import gpuAvailable
 import zipfile
 import io
 import sys
@@ -19,6 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+gpuAvailable()
+
 @app.get("/")
 async def root():
     return {
@@ -27,7 +29,6 @@ async def root():
     "version": "0.2.5",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
-    'devices': device_lib.list_local_devices(),
     'versions': {
         'python': sys.version,
         'tensorflow': tf.__version__
