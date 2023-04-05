@@ -1,6 +1,6 @@
-import tensorflow as tf
+from tensorflow.python.client import device_lib
 
 def gpuAvailable():
   print('Checking if GPU is available')
-  devices = tf.config.list_physical_devices('GPU')
+  devices = device_lib.list_local_devices()
   print(devices)
