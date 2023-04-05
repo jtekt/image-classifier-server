@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from keras import backend
 import tensorflow as tf
 from classifier import Classifier
 import zipfile
@@ -23,13 +24,14 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
+    'gpu': len(backend.tensorflow_backend._get_available_gpus()) > 0,
     'versions': {
         'python': sys.version,
         'tensorflow': tf.__version__
-    }
+        }
     }
 
 @app.post("/predict")
