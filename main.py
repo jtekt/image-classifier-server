@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from keras import backend
 import tensorflow as tf
+from tensorflow.python.client import device_lib
 from classifier import Classifier
 import zipfile
 import io
@@ -27,7 +27,7 @@ async def root():
     "version": "0.2.5",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
-    'gpu': len(backend.tensorflow_backend._get_available_gpus()) > 0,
+    'devices': device_lib.list_local_devices(),
     'versions': {
         'python': sys.version,
         'tensorflow': tf.__version__
