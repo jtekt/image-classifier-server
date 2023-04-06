@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: ${APPLICATION_NAME}
-          image: ${CONTAINER_IMAGE_TAGGED_GPU}
+          image: ${CONTAINER_IMAGE_TAGGED_CPU}
           ports:
             - containerPort: 80
       #     volumeMounts:
