@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from time import time
 import json
 import io
+from config import model_name, model_version, mlflow_tracking_uri
+import mlflow 
 
 load_dotenv()
 
@@ -40,46 +42,59 @@ class Classifier:
         # TODO: Throw an error if the model cannot be loaded
         # Note: This will make the container crash if function called outside of FastAPI
 
-        # The loading of the model itself
-        try:
-            print('[AI] Loading model...')
-            self.model = keras.models.load_model(self.model_path)
-            print('[AI] Model loaded')
-
+        if mlflow_tracking_uri and model_name and model_version:
+            print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
+            self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
             self.model_loaded = True
-        except:
-            print('[AI] Failed to load model')
-            self.model_loaded = False
 
-        # Get model info from .json file
-        try:
-            jsonModelInfo = self.readModelInfo()
-            self.model_info = {**self.model_info, **jsonModelInfo}
-            
-        except:
-            print('[AI] Failed to load .json model information')
+        else :
+            try:
+                print('[AI] Loading model...')
+                self.model = keras.models.load_model(self.model_path)
+                print('[AI] Model loaded')
+                self.model_loaded = True
+
+            except Exception as e:
+                print('[AI] Failed to load model')
+                print(e)
+                self.model_loaded = False
+
+            # Get model info from .json file
+            try:
+                jsonModelInfo = self.readModelInfo()
+                self.model_info = {**self.model_info, **jsonModelInfo}
+                
+            except:
+                print('[AI] Failed to load .json model information')
 
 
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)
 
         target_size = None
-        if 'input_size' in self.model_info:
+
+        # TODO: look for existence of metadata instead
+        if mlflow_tracking_uri and model_name and model_version:
+            # Getting input shape from MLflow
+            input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
+            target_size = (input_shape[1],input_shape[2])
+
+        elif 'input_size' in self.model_info:
             # TODO: DOUBLE CHECK IF HEIGHT FIRST OR WIDTH FIRST
             target_size = (self.model_info['input_size']['height'], self.model_info['input_size']['width'])
 
         img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)
-        return tf.expand_dims(img_array, 0)  # Create batch axis
+
+        # Create batch axis
+        return tf.expand_dims(img_array, 0).numpy()  
 
 
     def get_class_name(self, prediction):
         # Name output if possible
-
         max_index = np.argmax(prediction)
-        name = self.model_info['class_names'][max_index]
-
-        return name
+        return self.model_info['class_names'][max_index]
 
     async def predict(self, file):
 
@@ -96,11 +111,8 @@ class Classifier:
             'inference_time': inference_time
         }
 
-
-
         # Add class name if class names available
         if 'class_names' in self.model_info:
-            print('MODEL INFO HAS CLASSES')
             response['class_name'] = self.get_class_name(prediction)
 
         print(f'[AI] Prediction: {prediction}')
