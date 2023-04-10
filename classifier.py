@@ -75,7 +75,7 @@ class Classifier:
             target_size = (input_shape[1],input_shape[2])
 
         else:
-            target_size = (model.input.shape[1] , model.input.shape[2])
+            target_size = (self.model.input.shape[1] , self.model.input.shape[2])
 
         img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)
