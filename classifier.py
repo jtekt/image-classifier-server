@@ -34,35 +34,34 @@ class Classifier:
             return json.load(openfile)
 
     def load_model(self):
-        # TODO: Throw an error if the model cannot be loaded
-        # Note: This will make the container crash if function called outside of FastAPI
 
-        if mlflow_tracking_uri and model_name and model_version:
-            print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-            self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-            self.model_loaded = True
+        try:
 
-        else :
-            try:
-                print('[AI] Loading model...')
-                self.model = keras.models.load_model(self.model_path)
-                print('[AI] Model loaded')
+            print('[AI] Loading model')
+            if mlflow_tracking_uri and model_name and model_version:
+                print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
+                self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
+                self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
                 self.model_loaded = True
 
-            except Exception as e:
-                print('[AI] Failed to load model')
-                print(e)
-                self.model_loaded = False
+            else :
+                print(f'[AI] Loading from local directory at {self.model_path}')
+                self.model = keras.models.load_model(self.model_path)
+                self.model_loaded = True
 
-            # Get model info from .json file
-            try:
-                jsonModelInfo = self.readModelInfo()
-                self.model_info = {**self.model_info, **jsonModelInfo}
-                
-            except:
-                print('[AI] Failed to load .json model information')
+                # Get model info from .json file
+                try:
+                    jsonModelInfo = self.readModelInfo()
+                    self.model_info = {**self.model_info, **jsonModelInfo}
+                except:
+                    print('Failed to load .json model information')
 
+            print('[AI] Model loaded')
+
+        except Exception as e:
+            print('[AI] Failed to load model')
+            print(e)
+            self.model_loaded = False
 
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)
@@ -70,7 +69,6 @@ class Classifier:
         target_size = None
 
         if mlflow_tracking_uri and model_name and model_version:
-            # Getting input shape from MLflow
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
             target_size = (input_shape[1],input_shape[2])
 
