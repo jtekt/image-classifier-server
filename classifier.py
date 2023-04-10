@@ -74,15 +74,13 @@ class Classifier:
 
         target_size = None
 
-        # TODO: look for existence of metadata instead
         if mlflow_tracking_uri and model_name and model_version:
             # Getting input shape from MLflow
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
             target_size = (input_shape[1],input_shape[2])
 
-        elif 'input_size' in self.model_info:
-            # TODO: DOUBLE CHECK IF HEIGHT FIRST OR WIDTH FIRST
-            target_size = (self.model_info['input_size']['height'], self.model_info['input_size']['width'])
+        else:
+            target_size = (model.input.shape[1] , model.input.shape[2])
 
         img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)

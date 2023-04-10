@@ -26,7 +26,7 @@ async def root():
     return {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
     'gpu': len(getGpus()),
