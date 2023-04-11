@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import cv2
+from fastapi import HTTPException
 from os import getenv, path
 from dotenv import load_dotenv
 from time import time
@@ -88,6 +89,9 @@ class Classifier:
         return self.model_info['class_names'][max_index]
 
     async def predict(self, file):
+
+        if not self.model_loaded:
+            raise HTTPException(status_code=503, detail='Model not loaded')
 
         inference_start_time = time()
 
