@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from time import time
 import json
 import io
-from config import model_name, model_version, mlflow_tracking_uri
 import mlflow 
 
 load_dotenv()
@@ -22,12 +21,26 @@ class Classifier:
         # Attribute to hold additional information regarding the model
         self.model_info = {  }
 
+        self.mlflow = None
+
         # Setting model parameters using env
         if getenv('CLASS_NAMES'):
             print('Classes set from env')
             self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
 
-        self.load_model()
+        # Setting model parameters using env
+        if getenv('MLFLOW_TRACKING_URI') and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
+            self.mlflow = {
+                "trackingUrl": getenv('MLFLOW_TRACKING_URI'),
+                "model": getenv('MLFLOW_MODEL_NAME'),
+                "version": getenv('MLFLOW_MODEL_VERSION')
+            }
+
+        try:
+            self.load_model()
+        except Exception as e:
+            print('[AI] Failed to load model')
+            print(e)
 
     def readModelInfo(self):
         file_path = path.join(self.model_path, 'modelInfo.json')
@@ -36,33 +49,36 @@ class Classifier:
 
     def load_model(self):
 
-        try:
+        # Reset model info
+        self.model_info = {}
 
-            print('[AI] Loading model')
-            if mlflow_tracking_uri and model_name and model_version:
-                print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-                self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-                self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-                self.model_loaded = True
+        print('[AI] Loading model')
+        if self.mlflow:
+            model_name = self.mlflow["model"]
+            mlflow_tracking_uri = self.mlflow["trackingUrl"]
+            model_version = self.mlflow["version"]
 
-            else :
-                print(f'[AI] Loading from local directory at {self.model_path}')
-                self.model = keras.models.load_model(self.model_path)
-                self.model_loaded = True
+            print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
+            mlflow.set_tracking_uri(mlflow_tracking_uri)
+            self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+            self.model_loaded = True
 
-                # Get model info from .json file
-                try:
-                    jsonModelInfo = self.readModelInfo()
-                    self.model_info = {**self.model_info, **jsonModelInfo}
-                except:
-                    print('Failed to load .json model information')
+        else :
+            print(f'[AI] Loading from local directory at {self.model_path}')
+            self.model = keras.models.load_model(self.model_path)
+            self.model_loaded = True
 
-            print('[AI] Model loaded')
+            # Get model info from .json file
+            try:
+                jsonModelInfo = self.readModelInfo()
+                self.model_info = {**self.model_info, **jsonModelInfo}
+            except:
+                print('Failed to load .json model information')
 
-        except Exception as e:
-            print('[AI] Failed to load model')
-            print(e)
-            self.model_loaded = False
+        print('[AI] Model loaded')
+
+        
 
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)

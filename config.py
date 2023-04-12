@@ -8,3 +8,4 @@ model_name = environ.get('MODEL_NAME')
 model_version = environ.get('MODEL_VERSION')
 mlflow_tracking_uri = environ.get('MLFLOW_TRACKING_URI')
 
+prevent_model_update = environ.get('PREVENT_MODEL_UPDATE')
