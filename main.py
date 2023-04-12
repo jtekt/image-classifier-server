@@ -6,7 +6,7 @@ from utils import getGpus
 import zipfile
 import io
 import sys
-from config import model_name, model_version, mlflow_tracking_uri, prevent_model_update
+from config import prevent_model_update
 from pydantic import BaseModel
 
 classifier = Classifier()
@@ -35,6 +35,7 @@ async def root():
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
     'gpu': len(getGpus()),
+    'update_allowed': not prevent_model_update,
     'versions': {
         'python': sys.version,
         'tensorflow': tf.__version__

@@ -85,7 +85,7 @@ class Classifier:
 
         target_size = None
 
-        if mlflow_tracking_uri and model_name and model_version:
+        if self.mlflow:
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
             target_size = (input_shape[1],input_shape[2])
 
