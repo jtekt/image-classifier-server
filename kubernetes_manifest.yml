@@ -28,6 +28,9 @@ spec:
           image: ${CONTAINER_IMAGE_TAGGED_CPU}
           ports:
             - containerPort: 80
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: http://172.16.98.151:30273
       #     volumeMounts:
       #       - mountPath: /usr/src/app/model
       #         name: model
