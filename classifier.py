@@ -83,12 +83,13 @@ class Classifier:
 
         target_size = None
 
-        if self.mlflow:
+        if hasattr(self.model, 'input'):
+            target_size = (self.model.input.shape[1] , self.model.input.shape[2])
+
+        elif hasattr(self.model, 'metadata'):
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
             target_size = (input_shape[1],input_shape[2])
 
-        else:
-            target_size = (self.model.input.shape[1] , self.model.input.shape[2])
 
         img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)

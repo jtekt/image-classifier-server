@@ -31,7 +31,7 @@ async def root():
     response = {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.6.0",
+    "version": "0.6.2",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
     "mlflow_tracking_uri": mlflow_tracking_uri,
