@@ -9,6 +9,7 @@ from time import time
 import json
 import io
 import mlflow 
+from config import mlflow_tracking_uri
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ class Classifier:
         # Attribute to hold additional information regarding the model
         self.model_info = {  }
 
-        self.mlflow = None
+        self.mlflow_model = None
 
         # Setting model parameters using env
         if getenv('CLASS_NAMES'):
@@ -29,9 +30,8 @@ class Classifier:
             self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
 
         # Setting model parameters using env
-        if getenv('MLFLOW_TRACKING_URI') and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
-            self.mlflow = {
-                "trackingUrl": getenv('MLFLOW_TRACKING_URI'),
+        if mlflow_tracking_uri and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
+            self.mlflow_model = {
                 "model": getenv('MLFLOW_MODEL_NAME'),
                 "version": getenv('MLFLOW_MODEL_VERSION')
             }
@@ -53,13 +53,11 @@ class Classifier:
         self.model_info = {}
 
         print('[AI] Loading model')
-        if self.mlflow:
-            model_name = self.mlflow["model"]
-            mlflow_tracking_uri = self.mlflow["trackingUrl"]
-            model_version = self.mlflow["version"]
+        if self.mlflow_model:
+            model_name = self.mlflow_model["model"]
+            model_version = self.mlflow_model["version"]
 
             print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-            mlflow.set_tracking_uri(mlflow_tracking_uri)
             self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
             self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
             self.model_loaded = True

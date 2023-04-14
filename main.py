@@ -6,8 +6,9 @@ from utils import getGpus
 import zipfile
 import io
 import sys
-from config import prevent_model_update
+from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
+import requests
 
 classifier = Classifier()
 
@@ -24,16 +25,16 @@ app.add_middleware(
 class MlflowModel(BaseModel):
     model: str
     version: str
-    trackingUrl: str
 
 @app.get("/")
 async def root():
     response = {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
+    "mlflow_tracking_uri": mlflow_tracking_uri,
     'gpu': len(getGpus()),
     'update_allowed': not prevent_model_update,
     'versions': {
@@ -41,8 +42,8 @@ async def root():
         'tensorflow': tf.__version__
         }
     }
-    if classifier.mlflow:
-        response["mlflow"] = {**classifier.mlflow}
+    if classifier.mlflow_model:
+        response["mlflow_model"] = {**classifier.mlflow_model}
     return response
 
 @app.post("/predict")
@@ -59,7 +60,7 @@ async def upload_model(model: bytes = File()):
     with zipfile.ZipFile(fileBuffer) as zip_ref:
         zip_ref.extractall('./model')
     
-    classifier.mlflow = None
+    classifier.mlflow_model = None
     classifier.load_model()
     return {"file_size": len(model)}
 
@@ -68,9 +69,14 @@ async def upload_model(model: bytes = File()):
 async def updateMlflowModel(mlflowModel: MlflowModel):
     if prevent_model_update:
         raise HTTPException(status_code=403, detail="Model update is forbidden")
-    
-    classifier.mlflow = mlflowModel.dict()
-
+    classifier.mlflow_model = mlflowModel.dict()
     classifier.load_model()
-        
     return "OK"
+
+# TODO: Only if MLFLOW available
+if mlflow_tracking_uri:
+    @app.get("/mlflow/registered-models/search")
+    async def updateMlflowModel():
+        url = f'{mlflow_tracking_uri}/api/2.0/mlflow/registered-models/search'
+        response = requests.get(url)
+        return response.json()
