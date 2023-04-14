@@ -9,6 +9,7 @@ import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
 import requests
+from pydantic import BaseModel
 
 classifier = Classifier()
 
@@ -31,7 +32,7 @@ async def root():
     response = {
     "application_name": "image classifier server",
     "author": "Maxime MOREILLON",
-    "version": "0.6.2",
+    "version": "0.7.0",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
     "mlflow_tracking_uri": mlflow_tracking_uri,
@@ -73,10 +74,24 @@ async def updateMlflowModel(mlflowModel: MlflowModel):
     classifier.load_model()
     return "OK"
 
-# TODO: Only if MLFLOW available
+# Proxying the MLflow REST API for the classifier server GUI
+# TODO: Put those in a dedicated route
+
 if mlflow_tracking_uri:
-    @app.get("/mlflow/registered-models/search")
-    async def updateMlflowModel():
-        url = f'{mlflow_tracking_uri}/api/2.0/mlflow/registered-models/search'
-        response = requests.get(url)
-        return response.json()
+
+    from mlflow import MlflowClient
+    client = MlflowClient()
+
+    @app.get("/mlflow/models")
+    async def getMlflowModels():
+        models = []
+        for model in client.search_registered_models():
+            models.append(model)
+        return models
+    
+    @app.get("/mlflow/models/{model}/versions")
+    async def getMlflowModelVersions(model):
+        versions = []
+        for version in client.search_model_versions(f"name='{model}'"):
+            versions.append(version)
+        return versions
