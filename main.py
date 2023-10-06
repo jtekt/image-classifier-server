@@ -52,27 +52,47 @@ async def predict(image: bytes = File()):
     result = await classifier.predict(image)
     return result
 
-@app.post("/model")
+@app.post("/keras")
 async def upload_model(model: bytes = File()):
     if prevent_model_update:
         raise HTTPException(status_code=403, detail="Model update is forbidden")
-        
+    
+    model_name = None
+    
     fileBuffer = io.BytesIO(model)
     with zipfile.ZipFile(fileBuffer) as zip_ref:
         zip_ref.extractall('./model')
+            
+    classifier.model_name = None
+    classifier.load_model_from_keras()
     
-    classifier.mlflow_model = None
-    classifier.load_model()
-    return {"file_size": len(model)}
+    return {
+        "filename": classifier.model_name
+        }
 
-
-@app.put("/model")
-async def updateMlflowModel(mlflowModel: MlflowModel):
+@app.post("/onnx")
+async def upload_model(model: bytes = File()):
     if prevent_model_update:
         raise HTTPException(status_code=403, detail="Model update is forbidden")
-    classifier.mlflow_model = mlflowModel.dict()
-    classifier.load_model()
-    return "OK"
+    
+    model_name = None
+    
+    fileBuffer = io.BytesIO(model)
+    with zipfile.ZipFile(fileBuffer) as zip_ref:
+        zip_ref.extractall('./model')
+        names = zip_ref.namelist()
+        
+    for name in names:
+        base, ext = os.path.splitext(name)
+        if ext == '.onnx':
+            file_path = name
+            
+    classifier.model_name = file_path
+    classifier.load_model_from_onnx()
+    
+    return {
+        "filename": classifier.model_name
+        }
 
 # Proxying the MLflow REST API for the classifier server GUI
 # TODO: Put those in a dedicated route
@@ -80,6 +100,7 @@ async def updateMlflowModel(mlflowModel: MlflowModel):
 if mlflow_tracking_uri:
 
     from mlflow import MlflowClient
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
     client = MlflowClient()
 
     @app.get("/mlflow/models")
@@ -95,3 +116,12 @@ if mlflow_tracking_uri:
         for version in client.search_model_versions(f"name='{model}'"):
             versions.append(version)
         return versions
+    
+    @app.put("/mlflow")
+    async def updateMlflowModel(mlflowModel: MlflowModel):
+        if prevent_model_update:
+            raise HTTPException(status_code=403, detail="Model update is forbidden")
+        classifier.load_model_from_mlflow(mlflowModel.dict()["model"], mlflowModel.dict()["version"])
+        return {
+            "OK"
+        }
