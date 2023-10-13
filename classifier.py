@@ -72,7 +72,7 @@ class Classifier:
         print(f'[AI] Loading from local directory at {self.model_path}')
         self.model = keras.models.load_model(self.model_path)
         self.model_loaded = True
-        self.model_info['from_keras'] = self.model_path
+        self.model_info['load_model'] = "from_keras
 
         # Get model info from .json file
         try:
@@ -105,7 +105,7 @@ class Classifier:
         self.model = onnxruntime.InferenceSession(model_path, providers=providers)
         
         self.model_loaded = True
-        self.model_info['from_onnx'] = model_path
+        self.model_info['load_model'] = "from_onnx"
 
         print('[AI] Model loaded')
         print(f'[AI] ONNX Runtime Providers: {str(providers)}')

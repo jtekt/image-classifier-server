@@ -77,7 +77,7 @@ async def upload_model(model: bytes = File()):
         classifier.model_name = None
         classifier.load_model_from_keras()
     
-    return classifier.model_info
+    return classifier.model_info["load_model"]
 
 @app.post("/keras")
 async def upload_model(model: bytes = File()):
