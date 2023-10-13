@@ -109,7 +109,6 @@ class Classifier:
 
         print('[AI] Model loaded')
         print(f'[AI] ONNX Runtime Providers: {str(providers)}')
-        print(self.model_info)
 
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)
@@ -152,8 +151,6 @@ class Classifier:
             output_names = [outp.name for outp in self.model.get_outputs()]
             input = self.model.get_inputs()[0]
             model_output = self.model.run(output_names, {input.name: model_input})
-            
-        print(model_output)
         
         # Separate by type of output
         if isinstance(model_output, dict):

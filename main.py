@@ -53,6 +53,32 @@ async def predict(image: bytes = File()):
     result = await classifier.predict(image)
     return result
 
+@app.post("/model")
+async def upload_model(model: bytes = File()):
+    if prevent_model_update:
+        raise HTTPException(status_code=403, detail="Model update is forbidden")
+    
+    model_name = None
+    
+    fileBuffer = io.BytesIO(model)
+    with zipfile.ZipFile(fileBuffer) as zip_ref:
+        zip_ref.extractall('./model')
+        names = zip_ref.namelist()
+        
+    for name in names:
+        base, ext = path.splitext(name)
+        if ext == '.onnx':
+            model_name = name
+            
+    if model_name:
+        classifier.model_name = model_name
+        classifier.load_model_from_onnx()
+    else:
+        classifier.model_name = None
+        classifier.load_model_from_keras()
+    
+    return classifier.model_info
+
 @app.post("/keras")
 async def upload_model(model: bytes = File()):
     if prevent_model_update:
