@@ -1,25 +1,24 @@
 # base image: NGC tf_image(Jetpack 5.1)
 FROM nvcr.io/nvidia/l4t-tensorflow:r35.3.1-tf2.11-py3
-# FROM tensorflow/tensorflow:2.11.0
 
 WORKDIR /usr/src/app
 COPY . .
 # RUN mkdir /usr/src/app/model
 
-# Need to set proxy env var otherwise numpy cannot install properly
-ENV http_proxy=http://172.16.98.151:8118
-ENV https_proxy=http://172.16.98.151:8118
-ENV no_proxy=172.16.98.151
+# # Need to set proxy env var otherwise numpy cannot install properly
+# ENV http_proxy=http://172.16.98.151:8118
+# ENV https_proxy=http://172.16.98.151:8118
+# ENV no_proxy=172.16.98.151
 
-# delete TensorFlow Info message
-ENV TF_CPP_MIN_LOG_LEVEL=2
+# # delete TensorFlow Info message
+# ENV TF_CPP_MIN_LOG_LEVEL=2
 
 RUN apt-get update
 RUN apt-get install -y cmake libgl1 libglib2.0-0
 
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
-# RUN wget https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -O onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl
+RUN wget https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -O onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl
 RUN pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl
 
 EXPOSE 80

@@ -49,35 +49,6 @@ class Classifier:
         with open(file_path, 'r') as openfile:
             return json.load(openfile)
 
-    def load_model(self):
-
-        # Reset model info
-        self.model_info = {}
-
-        print('[AI] Loading model')
-        if self.mlflow_model:
-            model_name = self.mlflow_model["model"]
-            model_version = self.mlflow_model["version"]
-
-            print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-            self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-            self.model_loaded = True
-
-        else :
-            print(f'[AI] Loading from local directory at {self.model_path}')
-            self.model = keras.models.load_model(self.model_path)
-            self.model_loaded = True
-
-            # Get model info from .json file
-            try:
-                jsonModelInfo = self.readModelInfo()
-                self.model_info = {**self.model_info, **jsonModelInfo}
-            except:
-                print('Failed to load .json model information')
-
-        print('[AI] Model loaded')
-
     def load_model_from_mlflow(self, model_name, model_version):
         # load any format model mlflow 
         
@@ -120,7 +91,7 @@ class Classifier:
         print(f'[AI] Loading from local directory at {self.model_path}')
 
         model_path = path.join(self.model_path, self.model_name)
-        if not os.path.isfile(model_path):
+        if not path.isfile(model_path):
             raise ValueError(f"Model file {model_path} does not exist")
         
         # Set provider of onnxruntime
@@ -157,13 +128,11 @@ class Classifier:
             input_shape = self.model.get_inputs()[0].shape
             target_size = (input_shape[1], input_shape[2])
 
-
         img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
         img_array = keras.preprocessing.image.img_to_array(img)
 
         # Create batch axis
         return tf.expand_dims(img_array, 0).numpy()  
-
 
     def get_class_name(self, prediction):
         # Name output if possible

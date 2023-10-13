@@ -5,6 +5,7 @@ from classifier import Classifier
 from utils import getGpus
 import zipfile
 import io
+from os import path
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
@@ -83,7 +84,7 @@ async def upload_model(model: bytes = File()):
         names = zip_ref.namelist()
         
     for name in names:
-        base, ext = os.path.splitext(name)
+        base, ext = path.splitext(name)
         if ext == '.onnx':
             file_path = name
             
@@ -98,7 +99,7 @@ async def upload_model(model: bytes = File()):
 # TODO: Put those in a dedicated route
 
 if mlflow_tracking_uri:
-
+    import mlflow
     from mlflow import MlflowClient
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     client = MlflowClient()
