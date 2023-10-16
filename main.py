@@ -80,48 +80,6 @@ async def upload_model(model: bytes = File()):
     
     return classifier.model_info["load_model"]
 
-# @app.post("/keras")
-# async def upload_model(model: bytes = File()):
-#     if prevent_model_update:
-#         raise HTTPException(status_code=403, detail="Model update is forbidden")
-    
-#     model_name = None
-    
-#     fileBuffer = io.BytesIO(model)
-#     with zipfile.ZipFile(fileBuffer) as zip_ref:
-#         zip_ref.extractall('./model')
-            
-#     classifier.model_name = None
-#     classifier.load_model_from_keras()
-    
-#     return {
-#         "format": classifier.model_info["load_model"]
-#         }
-
-# @app.post("/onnx")
-# async def upload_model(model: bytes = File()):
-#     if prevent_model_update:
-#         raise HTTPException(status_code=403, detail="Model update is forbidden")
-    
-#     model_name = None
-    
-#     fileBuffer = io.BytesIO(model)
-#     with zipfile.ZipFile(fileBuffer) as zip_ref:
-#         zip_ref.extractall('./model')
-#         names = zip_ref.namelist()
-        
-#     for name in names:
-#         base, ext = path.splitext(name)
-#         if ext == '.onnx':
-#             file_path = name
-            
-#     classifier.model_name = file_path
-#     classifier.load_model_from_onnx()
-    
-#     return {
-#         "format": classifier.model_info["load_model"]
-#         }
-
 # Proxying the MLflow REST API for the classifier server GUI
 # TODO: Put those in a dedicated route
 
