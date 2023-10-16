@@ -64,7 +64,8 @@ async def upload_model(model: bytes = File()):
     with zipfile.ZipFile(fileBuffer) as zip_ref:
         zip_ref.extractall('./model')
         names = zip_ref.namelist()
-        
+        filename = path.dirname(names[0])
+    
     for name in names:
         base, ext = path.splitext(name)
         if ext == '.onnx':
@@ -74,52 +75,52 @@ async def upload_model(model: bytes = File()):
         classifier.model_name = model_name
         classifier.load_model_from_onnx()
     else:
-        classifier.model_name = None
+        classifier.model_name = filename
         classifier.load_model_from_keras()
     
     return classifier.model_info["load_model"]
 
-@app.post("/keras")
-async def upload_model(model: bytes = File()):
-    if prevent_model_update:
-        raise HTTPException(status_code=403, detail="Model update is forbidden")
+# @app.post("/keras")
+# async def upload_model(model: bytes = File()):
+#     if prevent_model_update:
+#         raise HTTPException(status_code=403, detail="Model update is forbidden")
     
-    model_name = None
+#     model_name = None
     
-    fileBuffer = io.BytesIO(model)
-    with zipfile.ZipFile(fileBuffer) as zip_ref:
-        zip_ref.extractall('./model')
+#     fileBuffer = io.BytesIO(model)
+#     with zipfile.ZipFile(fileBuffer) as zip_ref:
+#         zip_ref.extractall('./model')
             
-    classifier.model_name = None
-    classifier.load_model_from_keras()
+#     classifier.model_name = None
+#     classifier.load_model_from_keras()
     
-    return {
-        "filename": classifier.model_name
-        }
+#     return {
+#         "format": classifier.model_info["load_model"]
+#         }
 
-@app.post("/onnx")
-async def upload_model(model: bytes = File()):
-    if prevent_model_update:
-        raise HTTPException(status_code=403, detail="Model update is forbidden")
+# @app.post("/onnx")
+# async def upload_model(model: bytes = File()):
+#     if prevent_model_update:
+#         raise HTTPException(status_code=403, detail="Model update is forbidden")
     
-    model_name = None
+#     model_name = None
     
-    fileBuffer = io.BytesIO(model)
-    with zipfile.ZipFile(fileBuffer) as zip_ref:
-        zip_ref.extractall('./model')
-        names = zip_ref.namelist()
+#     fileBuffer = io.BytesIO(model)
+#     with zipfile.ZipFile(fileBuffer) as zip_ref:
+#         zip_ref.extractall('./model')
+#         names = zip_ref.namelist()
         
-    for name in names:
-        base, ext = path.splitext(name)
-        if ext == '.onnx':
-            file_path = name
+#     for name in names:
+#         base, ext = path.splitext(name)
+#         if ext == '.onnx':
+#             file_path = name
             
-    classifier.model_name = file_path
-    classifier.load_model_from_onnx()
+#     classifier.model_name = file_path
+#     classifier.load_model_from_onnx()
     
-    return {
-        "filename": classifier.model_name
-        }
+#     return {
+#         "format": classifier.model_info["load_model"]
+#         }
 
 # Proxying the MLflow REST API for the classifier server GUI
 # TODO: Put those in a dedicated route

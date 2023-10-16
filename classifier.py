@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from time import time
 import json
 import io
+from glob import glob
 import json
 import mlflow 
 from config import mlflow_tracking_uri, provider
@@ -43,6 +44,16 @@ class Classifier:
                 print(e)
         
         # TODO: load model from local directory at {self.model_path}
+        if glob(path.join(self.model_path, "*")):
+            try:
+                if glob(path.join(self.model_path, "*.onnx")):
+                    self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
+                    self.load_model_from_onnx()
+                else:
+                    self.load_model_from_keras()
+            except Exception as e:
+                print('[AI] Failed to load model from local directory')
+                print(e)
 
     def readModelInfo(self):
         file_path = path.join(self.model_path, 'modelInfo.json')
@@ -69,10 +80,15 @@ class Classifier:
         self.model_info = {}
 
         print('[AI] Loading model')
-        print(f'[AI] Loading from local directory at {self.model_path}')
-        self.model = keras.models.load_model(self.model_path)
+        # print(f'[AI] Loading from local directory at {self.model_path}')
+        if self.model_name:
+            model_path = path.join(self.model_path, self.model_name)
+        else:
+            model_path = self.model_path
+        print(f'[AI] Loading from local directory at {model_path}')
+        self.model = keras.models.load_model(model_path)
         self.model_loaded = True
-        self.model_info['load_model'] = "from_keras
+        self.model_info['load_model'] = "from_keras"
 
         # Get model info from .json file
         try:
