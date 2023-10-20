@@ -5,7 +5,7 @@ from classifier import Classifier
 from utils import getGpus, lookDeeperIfNeeded
 import zipfile
 import io
-from os import path, remove
+from os import path, remove, mkdir
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
@@ -62,17 +62,22 @@ async def upload_model(model: UploadFile = File(...)):
         raise HTTPException(status_code=403, detail="Model update is forbidden")
     
     # save model file according to file extension
-    _, ext = path.splitext(model.filename)
-    if ext == '.zip':
+    if model.filename.endswith('.zip'):
+        shutil.rmtree("./model")
+        mkdir("./model")
         with io.BytesIO(await model.read()) as tmp_stream, zipfile.ZipFile(tmp_stream, 'r') as zip_ref:
             zip_ref.extractall("./model")
-    else:
+        # unify folder structure when unzipping
+        lookDeeperIfNeeded('./model')
+    elif model.filename.endswith('.onnx'):
+        shutil.rmtree("./model")
+        mkdir("./model")
         file_path = f'./model/{model.filename}'
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(model.file, buffer)
-    
-    # unify folder structure when unzipping
-    lookDeeperIfNeeded('./model')
+    else:
+        # error script
+        raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
     
     # load model
     classifier.load_model_from_local()

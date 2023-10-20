@@ -72,17 +72,15 @@ class Classifier:
     def load_model_from_local(self):
         # load model from local directory
         # load ONNX files first, if available
-        if glob(path.join(self.model_path, "*")):
-            try:
-                if glob(path.join(self.model_path, "*.onnx")):
-                    self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
-                    print(self.model_name)
-                    self.load_model_from_onnx()
-                else:
-                    self.load_model_from_keras()
-            except Exception as e:
-                print('[AI] Failed to load model from local directory')
-                print(e)
+        try:
+            if glob(path.join(self.model_path, "*.onnx")):
+                self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
+                self.load_model_from_onnx()
+            else:
+                self.load_model_from_keras()
+        except Exception as e:
+            print('[AI] Failed to load model from local directory')
+            print(e)
     
     def load_model_from_keras(self):
 
