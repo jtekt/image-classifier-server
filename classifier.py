@@ -20,7 +20,7 @@ if mlflow_tracking_uri:
     mlflow.set_tracking_uri(mlflow_tracking_uri)
 
 class Classifier:
-
+    
     def __init__(self):
         self.model_path = "./model"
         self.model_loaded = False
@@ -34,35 +34,29 @@ class Classifier:
         if getenv('CLASS_NAMES'):
             print('Classes set from env')
             self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
-
-        # Setting model parameters using env
-        if mlflow_tracking_uri and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
+        
+        # load model files first if they exist in the local directory
+        # load model from local directory
+        if glob(path.join(self.model_path, "*")):
+            self.load_model_from_local()
+        # load model from mlflow
+        elif mlflow_tracking_uri and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
             try:
                 self.load_model_from_mlflow(getenv('MLFLOW_MODEL_NAME'), getenv('MLFLOW_MODEL_VERSION'))
             except Exception as e:
                 print('[AI] Failed to load model')
                 print(e)
         
-        # TODO: load model from local directory at {self.model_path}
-        if glob(path.join(self.model_path, "*")):
-            try:
-                if glob(path.join(self.model_path, "*.onnx")):
-                    self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
-                    self.load_model_from_onnx()
-                else:
-                    self.load_model_from_keras()
-            except Exception as e:
-                print('[AI] Failed to load model from local directory')
-                print(e)
+        
 
     def readModelInfo(self):
         file_path = path.join(self.model_path, 'modelInfo.json')
         with open(file_path, 'r') as openfile:
             return json.load(openfile)
+        
 
     def load_model_from_mlflow(self, model_name, model_version):
         # load any format model mlflow 
-        
         # Reset model info
         self.model_info = {}
         
@@ -71,8 +65,24 @@ class Classifier:
         self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
         self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
         self.model_loaded = True
+        self.model_info['origin'] = "mlflow"
         
         print('[AI] Model loaded')
+    
+    def load_model_from_local(self):
+        # load model from local directory
+        # load ONNX files first, if available
+        if glob(path.join(self.model_path, "*")):
+            try:
+                if glob(path.join(self.model_path, "*.onnx")):
+                    self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
+                    print(self.model_name)
+                    self.load_model_from_onnx()
+                else:
+                    self.load_model_from_keras()
+            except Exception as e:
+                print('[AI] Failed to load model from local directory')
+                print(e)
     
     def load_model_from_keras(self):
 
@@ -80,15 +90,12 @@ class Classifier:
         self.model_info = {}
 
         print('[AI] Loading model')
-        # print(f'[AI] Loading from local directory at {self.model_path}')
-        if self.model_name:
-            model_path = path.join(self.model_path, self.model_name)
-        else:
-            model_path = self.model_path
-        print(f'[AI] Loading from local directory at {model_path}')
-        self.model = keras.models.load_model(model_path)
+        
+        print(f'[AI] Loading from local directory at {self.model_path}')
+        self.model = keras.models.load_model(self.model_path)
         self.model_loaded = True
-        self.model_info['load_model'] = "from_keras"
+        self.model_info['origin'] = "folder"
+        self.model_info['type'] = "keras"
 
         # Get model info from .json file
         try:
@@ -98,7 +105,7 @@ class Classifier:
             print('Failed to load .json model information')
 
         print('[AI] Model loaded')
-
+        
     def load_model_from_onnx(self):
         
         self.model_info = {}
@@ -106,9 +113,9 @@ class Classifier:
         
         print(f'[AI] Loading from local directory at {self.model_path}')
 
-        model_path = path.join(self.model_path, self.model_name)
-        if not path.isfile(model_path):
-            raise ValueError(f"Model file {model_path} does not exist")
+        file_path = path.join(self.model_path, self.model_name)
+        if not path.isfile(file_path):
+            raise ValueError(f"Model file {file_path} does not exist")
         
         # Set provider of onnxruntime
         available_providers = onnxruntime.get_available_providers()
@@ -118,42 +125,47 @@ class Classifier:
         else:
             providers = available_providers
             
-        self.model = onnxruntime.InferenceSession(model_path, providers=providers)
+        self.model = onnxruntime.InferenceSession(file_path, providers=providers)
         
         self.model_loaded = True
-        self.model_info['load_model'] = "from_onnx"
+        self.model_info['origin'] = "folder"
+        self.model_info['type'] = "onnx"
+        self.model_info['providers'] = providers
 
         print('[AI] Model loaded')
         print(f'[AI] ONNX Runtime Providers: {str(providers)}')
-
-    async def load_image_from_request(self, file):
-        fileBuffer = io.BytesIO(file)
-
-        target_size = None
-
+        
+    async def get_target_size(self):
         # Separate by the method of getting input size
         if hasattr(self.model, 'input'):
-            target_size = (self.model.input.shape[1] , self.model.input.shape[2])
+            self.target_size = (self.model.input.shape[1] , self.model.input.shape[2])
 
         elif hasattr(self.model, 'metadata'):
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
-            target_size = (input_shape[1], input_shape[2])
+            self.target_size = (input_shape[1], input_shape[2])
             
         elif hasattr(self.model, 'get_inputs'):
             input_shape = self.model.get_inputs()[0].shape
-            target_size = (input_shape[1], input_shape[2])
+            self.target_size = (input_shape[1], input_shape[2])
+        
+    async def load_image_from_request(self, file):
+        fileBuffer = io.BytesIO(file)
 
-        img = keras.preprocessing.image.load_img( fileBuffer, target_size=target_size)
+        self.target_size = None
+        
+        self.get_target_size()
+
+        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
         img_array = keras.preprocessing.image.img_to_array(img)
 
         # Create batch axis
-        return tf.expand_dims(img_array, 0).numpy()  
+        return tf.expand_dims(img_array, 0).numpy()
 
     def get_class_name(self, prediction):
         # Name output if possible
         max_index = np.argmax(prediction)
         return self.model_info['class_names'][max_index]
-
+    
     async def predict(self, file):
         
         inference_start_time = time()

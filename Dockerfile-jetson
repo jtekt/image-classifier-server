@@ -3,6 +3,7 @@ FROM nvcr.io/nvidia/l4t-tensorflow:r35.3.1-tf2.11-py3
 
 WORKDIR /usr/src/app
 COPY . .
+RUN mkdir ./model
 
 RUN apt-get update
 RUN apt-get install -y cmake libgl1 libglib2.0-0

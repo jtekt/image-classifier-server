@@ -2,15 +2,17 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus
+from utils import getGpus, lookDeeperIfNeeded
 import zipfile
 import io
-from os import path
+from os import path, remove
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
 import requests
-from pydantic import BaseModel
+import shutil
+import numpy as np
+from PIL import Image
 
 classifier = Classifier()
 
@@ -25,7 +27,7 @@ app.add_middleware(
 )
 
 class MlflowModel(BaseModel):
-    model: str
+    name: str
     version: str
 
 @app.get("/")
@@ -54,31 +56,28 @@ async def predict(image: bytes = File()):
     return result
 
 @app.post("/model")
-async def upload_model(model: bytes = File()):
+async def upload_model(model: UploadFile = File(...)):
+    
     if prevent_model_update:
         raise HTTPException(status_code=403, detail="Model update is forbidden")
     
-    model_name = None
-    
-    fileBuffer = io.BytesIO(model)
-    with zipfile.ZipFile(fileBuffer) as zip_ref:
-        zip_ref.extractall('./model')
-        names = zip_ref.namelist()
-        filename = path.dirname(names[0])
-    
-    for name in names:
-        base, ext = path.splitext(name)
-        if ext == '.onnx':
-            model_name = name
-            
-    if model_name:
-        classifier.model_name = model_name
-        classifier.load_model_from_onnx()
+    # save model file according to file extension
+    _, ext = path.splitext(model.filename)
+    if ext == '.zip':
+        with io.BytesIO(await model.read()) as tmp_stream, zipfile.ZipFile(tmp_stream, 'r') as zip_ref:
+            zip_ref.extractall("./model")
     else:
-        classifier.model_name = filename
-        classifier.load_model_from_keras()
+        file_path = f'./model/{model.filename}'
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(model.file, buffer)
     
-    return classifier.model_info["load_model"]
+    # unify folder structure when unzipping
+    lookDeeperIfNeeded('./model')
+    
+    # load model
+    classifier.load_model_from_local()
+    
+    return classifier.model_info["type"]
 
 # Proxying the MLflow REST API for the classifier server GUI
 # TODO: Put those in a dedicated route
@@ -107,7 +106,7 @@ if mlflow_tracking_uri:
     async def updateMlflowModel(mlflowModel: MlflowModel):
         if prevent_model_update:
             raise HTTPException(status_code=403, detail="Model update is forbidden")
-        classifier.load_model_from_mlflow(mlflowModel.dict()["model"], mlflowModel.dict()["version"])
+        classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
         return {
-            "OK"
+            "result": "OK"
         }

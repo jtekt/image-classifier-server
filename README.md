@@ -8,10 +8,10 @@ This is an image classificatier server which can take any exported Keras AI mode
 
 ## API
 
-| Endpoint | Method | body/query                                                   | Description                      |
-| -------- | ------ | ------------------------------------------------------------ | -------------------------------- |
-| /predict | POST   | Image as 'image' field of multipart/form-data                | Get model inference on the image |
-| /model   | POST   | .zip of model export as 'model' field of multipart/form-data | Upload a new model               |
+| Endpoint | Method | body/query                                                            | Description                      |
+| -------- | ------ | --------------------------------------------------------------------- | -------------------------------- |
+| /predict | POST   | Image as 'image' field of multipart/form-data                         | Get model inference on the image |
+| /model   | POST   | .zip or .onnx of model export as 'model' field of multipart/form-data | Upload a new model               |
 
 ## Usage examples
 
