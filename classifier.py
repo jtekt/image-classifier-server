@@ -12,6 +12,7 @@ import io
 from glob import glob
 import json
 import mlflow 
+from PIL import Image
 from config import mlflow_tracking_uri, provider
 
 load_dotenv()
@@ -46,8 +47,6 @@ class Classifier:
             except Exception as e:
                 print('[AI] Failed to load model')
                 print(e)
-        
-        
 
     def readModelInfo(self):
         file_path = path.join(self.model_path, 'modelInfo.json')
@@ -133,10 +132,11 @@ class Classifier:
         print('[AI] Model loaded')
         print(f'[AI] ONNX Runtime Providers: {str(providers)}')
         
-    async def get_target_size(self):
+    def get_target_size(self):
         # Separate by the method of getting input size
         if hasattr(self.model, 'input'):
             self.target_size = (self.model.input.shape[1] , self.model.input.shape[2])
+            print(self.target_size)
 
         elif hasattr(self.model, 'metadata'):
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
@@ -164,6 +164,16 @@ class Classifier:
         max_index = np.argmax(prediction)
         return self.model_info['class_names'][max_index]
     
+    async def warm_up(self):
+        self.get_target_size()
+        input_ = np.ones(self.target_size, dtype='int8')
+        num_pil = Image.fromarray(input_)
+        num_byteio = io.BytesIO()
+        num_pil.save(num_byteio, format='png')
+        num_bytes = num_byteio.getvalue()
+        __ = await self.predict(num_bytes)
+        print(__['inference_time'])
+        
     async def predict(self, file):
         
         inference_start_time = time()

@@ -7,7 +7,7 @@ import zipfile
 import io
 from os import path, remove, mkdir
 import sys
-from config import prevent_model_update, mlflow_tracking_uri
+from config import prevent_model_update, mlflow_tracking_uri, warm_up_flag
 from pydantic import BaseModel
 import requests
 import shutil
@@ -63,6 +63,7 @@ async def upload_model(model: UploadFile = File(...)):
     
     # save model file according to file extension
     if model.filename.endswith('.zip'):
+        # reset model folder
         shutil.rmtree("./model")
         mkdir("./model")
         with io.BytesIO(await model.read()) as tmp_stream, zipfile.ZipFile(tmp_stream, 'r') as zip_ref:
@@ -70,6 +71,7 @@ async def upload_model(model: UploadFile = File(...)):
         # unify folder structure when unzipping
         lookDeeperIfNeeded('./model')
     elif model.filename.endswith('.onnx'):
+        # reset model folder
         shutil.rmtree("./model")
         mkdir("./model")
         file_path = f'./model/{model.filename}'
@@ -81,6 +83,9 @@ async def upload_model(model: UploadFile = File(...)):
     
     # load model
     classifier.load_model_from_local()
+    
+    if warm_up_flag:
+        await classifier.warm_up()
     
     return classifier.model_info["type"]
 
