@@ -7,7 +7,7 @@ import zipfile
 import io
 from os import path, remove, mkdir
 import sys
-from config import prevent_model_update, mlflow_tracking_uri, warm_up_flag
+from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
 import requests
 import shutil
@@ -82,10 +82,7 @@ async def upload_model(model: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
     
     # load model
-    classifier.load_model_from_local()
-    
-    if warm_up_flag:
-        await classifier.warm_up()
+    await classifier.load_model_from_local()
     
     return classifier.model_info["type"]
 

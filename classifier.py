@@ -13,7 +13,7 @@ from glob import glob
 import json
 import mlflow 
 from PIL import Image
-from config import mlflow_tracking_uri, provider
+from config import mlflow_tracking_uri, provider, warm_up
 
 load_dotenv()
 
@@ -54,7 +54,7 @@ class Classifier:
             return json.load(openfile)
         
 
-    def load_model_from_mlflow(self, model_name, model_version):
+    async def load_model_from_mlflow(self, model_name, model_version):
         # load any format model mlflow 
         # Reset model info
         self.model_info = {}
@@ -67,8 +67,11 @@ class Classifier:
         self.model_info['origin'] = "mlflow"
         
         print('[AI] Model loaded')
+        
+        if warm_up:
+            await self.warm_up()
     
-    def load_model_from_local(self):
+    async def load_model_from_local(self):
         # load model from local directory
         # load ONNX files first, if available
         try:
@@ -77,6 +80,8 @@ class Classifier:
                 self.load_model_from_onnx()
             else:
                 self.load_model_from_keras()
+            if warm_up:
+                await self.warm_up()
         except Exception as e:
             print('[AI] Failed to load model from local directory')
             print(e)
