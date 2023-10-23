@@ -109,7 +109,7 @@ if mlflow_tracking_uri:
             versions.append(version)
         return versions
     
-    @app.put("/mlflow")
+    @app.put("/model")
     async def updateMlflowModel(mlflowModel: MlflowModel):
         if prevent_model_update:
             raise HTTPException(status_code=403, detail="Model update is forbidden")
