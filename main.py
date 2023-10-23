@@ -2,14 +2,17 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus
+from utils import getGpus, lookDeeperIfNeeded
 import zipfile
 import io
+from os import path, remove, mkdir
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
 import requests
-from pydantic import BaseModel
+import shutil
+import numpy as np
+from PIL import Image
 
 classifier = Classifier()
 
@@ -24,7 +27,7 @@ app.add_middleware(
 )
 
 class MlflowModel(BaseModel):
-    model: str
+    name: str
     version: str
 
 @app.get("/")
@@ -53,33 +56,43 @@ async def predict(image: bytes = File()):
     return result
 
 @app.post("/model")
-async def upload_model(model: bytes = File()):
-    if prevent_model_update:
-        raise HTTPException(status_code=403, detail="Model update is forbidden")
-        
-    fileBuffer = io.BytesIO(model)
-    with zipfile.ZipFile(fileBuffer) as zip_ref:
-        zip_ref.extractall('./model')
+async def upload_model(model: UploadFile = File(...)):
     
-    classifier.mlflow_model = None
-    classifier.load_model()
-    return {"file_size": len(model)}
-
-
-@app.put("/model")
-async def updateMlflowModel(mlflowModel: MlflowModel):
     if prevent_model_update:
         raise HTTPException(status_code=403, detail="Model update is forbidden")
-    classifier.mlflow_model = mlflowModel.dict()
-    classifier.load_model()
-    return "OK"
+    
+    # save model file according to file extension
+    if model.filename.endswith('.zip'):
+        # reset model folder
+        shutil.rmtree("./model")
+        mkdir("./model")
+        with io.BytesIO(await model.read()) as tmp_stream, zipfile.ZipFile(tmp_stream, 'r') as zip_ref:
+            zip_ref.extractall("./model")
+        # unify folder structure when unzipping
+        lookDeeperIfNeeded('./model')
+    elif model.filename.endswith('.onnx'):
+        # reset model folder
+        shutil.rmtree("./model")
+        mkdir("./model")
+        file_path = f'./model/{model.filename}'
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(model.file, buffer)
+    else:
+        # error script
+        raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
+    
+    # load model
+    await classifier.load_model_from_local()
+    
+    return classifier.model_info["type"]
 
 # Proxying the MLflow REST API for the classifier server GUI
 # TODO: Put those in a dedicated route
 
 if mlflow_tracking_uri:
-
+    import mlflow
     from mlflow import MlflowClient
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
     client = MlflowClient()
 
     @app.get("/mlflow/models")
@@ -95,3 +108,12 @@ if mlflow_tracking_uri:
         for version in client.search_model_versions(f"name='{model}'"):
             versions.append(version)
         return versions
+    
+    @app.put("/mlflow")
+    async def updateMlflowModel(mlflowModel: MlflowModel):
+        if prevent_model_update:
+            raise HTTPException(status_code=403, detail="Model update is forbidden")
+        classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
+        return {
+            "result": "OK"
+        }
