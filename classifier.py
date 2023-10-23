@@ -136,7 +136,6 @@ class Classifier:
         # Separate by the method of getting input size
         if hasattr(self.model, 'input'):
             self.target_size = (self.model.input.shape[1] , self.model.input.shape[2])
-            print(self.target_size)
 
         elif hasattr(self.model, 'metadata'):
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
@@ -172,7 +171,6 @@ class Classifier:
         num_pil.save(num_byteio, format='png')
         num_bytes = num_byteio.getvalue()
         __ = await self.predict(num_bytes)
-        print(__['inference_time'])
         
     async def predict(self, file):
         
