@@ -34,7 +34,7 @@ class MlflowModel(BaseModel):
 async def root():
     response = {
     "application_name": "image classifier server",
-    "author": "Maxime MOREILLON",
+    "author": "Maxime MOREILLON, Shion ITO",
     "version": "0.7.0",
     "model_loaded": classifier.model_loaded,
     'model_info': {**classifier.model_info},
