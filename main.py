@@ -82,7 +82,7 @@ async def upload_model(model: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
     
     # load model
-    await classifier.load_model_from_local()
+    classifier.load_model_from_local()
     
     return classifier.model_info["type"]
 
