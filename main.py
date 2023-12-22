@@ -113,7 +113,7 @@ if mlflow_tracking_uri:
     async def updateMlflowModel(mlflowModel: MlflowModel):
         if prevent_model_update:
             raise HTTPException(status_code=403, detail="Model update is forbidden")
-        await classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
+        classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
         return {
             "result": "OK"
         }

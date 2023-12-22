@@ -34,7 +34,7 @@ class Classifier:
         # Setting model parameters using env
         if getenv('CLASS_NAMES'):
             print('Classes set from env')
-            self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
+            self.model_info['class_names'] = getenv("CLASS_NAMES").split(',')
         
         # load model files first if they exist in the local directory
         # load model from local directory
@@ -177,7 +177,7 @@ class Classifier:
         num_pil.save(num_byteio, format='png')
         num_bytes = num_byteio.getvalue()
         
-        inference_start_time = time()
+        initial_startup_time_start = time()
         # reshape dummy data
         fileBuffer = io.BytesIO(num_bytes)
         img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
@@ -196,10 +196,9 @@ class Classifier:
             prediction = model_output['pred'][0]
         else:
             prediction = model_output[0]
-        inference_time = time() - inference_start_time
-        print({
-            'inference_time': inference_time
-        })
+        initial_startup_time = time() - initial_startup_time_start
+        print('[AI] The initial startup of model is done.')
+        print('[AI] Initial startup time:', initial_startup_time, 's')
         
     async def predict(self, file):
         
@@ -213,11 +212,11 @@ class Classifier:
         elif hasattr(self.model, 'run'):
             output_names = [outp.name for outp in self.model.get_outputs()]
             input = self.model.get_inputs()[0]
-            model_output = self.model.run(output_names, {input.name: model_input})
+            model_output = self.model.run(output_names, {input.name: model_input})[0]
         
         # Separate by type of output
         if isinstance(model_output, dict):
-            prediction = model_output['pred']
+            prediction = model_output['pred'][0]
         else:
             prediction = model_output[0]
 
