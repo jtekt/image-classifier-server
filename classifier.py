@@ -34,7 +34,7 @@ class Classifier:
         # Setting model parameters using env
         if getenv('CLASS_NAMES'):
             print('Classes set from env')
-            self.model_info['classe_names'] = getenv("CLASS_NAMES").split(',')
+            self.model_info['class_names'] = getenv("CLASS_NAMES").split(',')
         
         # load model files first if they exist in the local directory
         # load model from local directory
@@ -54,7 +54,7 @@ class Classifier:
             return json.load(openfile)
         
 
-    async def load_model_from_mlflow(self, model_name, model_version):
+    def load_model_from_mlflow(self, model_name, model_version):
         # load any format model mlflow 
         # Reset model info
         self.model_info = {}
@@ -69,9 +69,9 @@ class Classifier:
         print('[AI] Model loaded')
         
         if warm_up:
-            await self.warm_up()
+            self.warm_up()
     
-    async def load_model_from_local(self):
+    def load_model_from_local(self):
         # load model from local directory
         # load ONNX files first, if available
         try:
@@ -81,7 +81,7 @@ class Classifier:
             else:
                 self.load_model_from_keras()
             if warm_up:
-                await self.warm_up()
+                self.warm_up()
         except Exception as e:
             print('[AI] Failed to load model from local directory')
             print(e)
@@ -168,14 +168,37 @@ class Classifier:
         max_index = np.argmax(prediction)
         return self.model_info['class_names'][max_index]
     
-    async def warm_up(self):
+    def warm_up(self):
+        # make dummy data
         self.get_target_size()
         input_ = np.ones(self.target_size, dtype='int8')
         num_pil = Image.fromarray(input_)
         num_byteio = io.BytesIO()
         num_pil.save(num_byteio, format='png')
         num_bytes = num_byteio.getvalue()
-        __ = await self.predict(num_bytes)
+        
+        initial_startup_time_start = time()
+        # reshape dummy data
+        fileBuffer = io.BytesIO(num_bytes)
+        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
+        img_array = keras.preprocessing.image.img_to_array(img)
+        # Create batch axis
+        model_input = tf.expand_dims(img_array, 0).numpy()
+        # predict
+        if hasattr(self.model, 'predict'):
+            model_output = self.model.predict(model_input)
+        elif hasattr(self.model, 'run'):
+            output_names = [outp.name for outp in self.model.get_outputs()]
+            input = self.model.get_inputs()[0]
+            model_output = self.model.run(output_names, {input.name: model_input})[0]
+        # Separate by type of output
+        if isinstance(model_output, dict):
+            prediction = model_output['pred'][0]
+        else:
+            prediction = model_output[0]
+        initial_startup_time = time() - initial_startup_time_start
+        print('[AI] The initial startup of model is done.')
+        print('[AI] Initial startup time:', initial_startup_time, 's')
         
     async def predict(self, file):
         
@@ -189,11 +212,11 @@ class Classifier:
         elif hasattr(self.model, 'run'):
             output_names = [outp.name for outp in self.model.get_outputs()]
             input = self.model.get_inputs()[0]
-            model_output = self.model.run(output_names, {input.name: model_input})
+            model_output = self.model.run(output_names, {input.name: model_input})[0]
         
         # Separate by type of output
         if isinstance(model_output, dict):
-            prediction = model_output['pred']
+            prediction = model_output['pred'][0]
         else:
             prediction = model_output[0]
 
