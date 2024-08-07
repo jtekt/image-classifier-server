@@ -6,4 +6,4 @@ opencv-python
 python-dotenv
 Pillow
 mlflow
-onnx
+onnx==1.14.0
