@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from os import getenv, path
 import onnx
 import onnxruntime
@@ -14,6 +14,7 @@ import json
 import mlflow 
 from PIL import Image
 from config import mlflow_tracking_uri, provider, warm_up
+import matplotlib.pyplot as plt
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ class Classifier:
     def __init__(self):
         self.model_path = "./model"
         self.model_loaded = False
+        self.last_conv_layer_name = 'top_conv'
 
         # Attribute to hold additional information regarding the model
         self.model_info = {  }
@@ -58,14 +60,50 @@ class Classifier:
         # load any format model mlflow 
         # Reset model info
         self.model_info = {}
+        if hasattr(self, 'model'):
+            del self.model
         
         print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-
-        self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-        self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-        self.model_loaded = True
-        self.model_info['origin'] = "mlflow"
         
+        model_uri = f'models:/{model_name}/{model_version}'
+        
+        mlmodel_fname = mlflow.models.model.MLMODEL_FILE_NAME
+        repo = mlflow.store.artifact.artifact_repository_registry.get_artifact_repository(model_uri)
+        repo._download_file(mlmodel_fname, mlmodel_fname)
+        mlmodel = mlflow.models.Model.load(mlmodel_fname)
+
+        if mlmodel.flavors.get('tensorflow'):
+            print('[AI] Loading keras model')
+            tmp_model = mlflow.keras.load_model(model_uri)
+            
+            self.model = tf.keras.models.Model(
+                tmp_model.input,
+                [tmp_model.get_layer(self.last_conv_layer_name).output, tmp_model.output]
+            )
+            
+            del tmp_model
+
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+            self.model_loaded = True
+            self.model_info['origin'] = "mlflow"
+            self.model_info['type'] = 'keras'
+            
+        elif mlmodel.flavors.get('onnx'):
+            print('[AI] Loading onnx model')
+            self.model = mlflow.pyfunc.load_model(model_uri)
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+            self.model_loaded = True
+            self.model_info['origin'] = "mlflow"
+            self.model_info['type'] = 'onnx'
+            
+        else:
+            print('[AI] Loading model')
+            self.model = mlflow.pyfunc.load_model(model_uri)
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+            self.model_loaded = True
+            self.model_info['origin'] = "mlflow"
+            self.model_info['type'] = 'other'
+    
         print('[AI] Model loaded')
         
         if warm_up:
@@ -74,27 +112,40 @@ class Classifier:
     def load_model_from_local(self):
         # load model from local directory
         # load ONNX files first, if available
+        if hasattr(self, 'model'):
+            del self.model
         try:
             if glob(path.join(self.model_path, "*.onnx")):
                 self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
                 self.load_model_from_onnx()
             else:
                 self.load_model_from_keras()
-            if warm_up:
-                self.warm_up()
+       
         except Exception as e:
             print('[AI] Failed to load model from local directory')
             print(e)
+            
+        if warm_up:
+            self.warm_up()
     
     def load_model_from_keras(self):
 
         # Reset model info
         self.model_info = {}
 
-        print('[AI] Loading model')
+        print('[AI] Loading keras model')
         
         print(f'[AI] Loading from local directory at {self.model_path}')
-        self.model = keras.models.load_model(self.model_path)
+        
+        tmp_model = keras.models.load_model(self.model_path)
+        
+        self.model = tf.keras.models.Model(
+            tmp_model.inputs,
+            [tmp_model.get_layer(self.last_conv_layer_name).output, tmp_model.output]
+        )
+        
+        del tmp_model
+        
         self.model_loaded = True
         self.model_info['origin'] = "folder"
         self.model_info['type'] = "keras"
@@ -111,7 +162,7 @@ class Classifier:
     def load_model_from_onnx(self):
         
         self.model_info = {}
-        print('[AI] Loading model')
+        print('[AI] Loading onnx model')
         
         print(f'[AI] Loading from local directory at {self.model_path}')
 
@@ -152,7 +203,8 @@ class Classifier:
         
     async def load_image_from_request(self, file):
         fileBuffer = io.BytesIO(file)
-
+        image = Image.open(io.BytesIO(file))
+        
         self.target_size = None
         
         self.get_target_size()
@@ -161,7 +213,7 @@ class Classifier:
         img_array = keras.preprocessing.image.img_to_array(img)
 
         # Create batch axis
-        return tf.expand_dims(img_array, 0).numpy()
+        return tf.expand_dims(img_array, 0).numpy(), image
 
     def get_class_name(self, prediction):
         # Name output if possible
@@ -185,12 +237,16 @@ class Classifier:
         # Create batch axis
         model_input = tf.expand_dims(img_array, 0).numpy()
         # predict
-        if hasattr(self.model, 'predict'):
-            model_output = self.model.predict(model_input)
-        elif hasattr(self.model, 'run'):
-            output_names = [outp.name for outp in self.model.get_outputs()]
-            input = self.model.get_inputs()[0]
-            model_output = self.model.run(output_names, {input.name: model_input})[0]
+        if self.model_info['type'] == 'keras':
+            __, model_output = self.model(model_input, training=False)
+            model_output = np.array(model_output)
+        else:
+            if hasattr(self.model, 'predict'):
+                model_output = self.model.predict(model_input)
+            elif hasattr(self.model, 'run'):
+                output_names = [outp.name for outp in self.model.get_outputs()]
+                input = self.model.get_inputs()[0]
+                model_output = self.model.run(output_names, {input.name: model_input})[0]
         # Separate by type of output
         if isinstance(model_output, dict):
             prediction = model_output['pred'][0]
@@ -199,20 +255,75 @@ class Classifier:
         initial_startup_time = time() - initial_startup_time_start
         print('[AI] The initial startup of model is done.')
         print('[AI] Initial startup time:', initial_startup_time, 's')
+    
+    def makeGradcamHeatmap(self, model_input, image, pred_index=None, alpha=0.3):
         
-    async def predict(self, file):
+        with tf.GradientTape() as tape:
+            last_conv_layer_output, preds = self.model(model_input, training=False)
+            if pred_index is None:
+                pred_index = tf.argmax(preds[0])
+            class_channel = preds[:, pred_index]
+        
+        grads = tape.gradient(class_channel, last_conv_layer_output)
+        
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        
+        last_conv_layer_output = last_conv_layer_output[0]
+        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
+        heatmap = tf.squeeze(heatmap)
+        
+        heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+        heatmap = np.int8(255 * heatmap.numpy())
+        jet = plt.get_cmap('jet')
+        
+        jet_colors = jet(np.arange(256))[:, :3]
+        jet_heatmap = jet_colors[heatmap]
+        
+        jet_heatmap = tf.keras.preprocessing.image.array_to_img(jet_heatmap)
+        jet_heatmap = jet_heatmap.resize(image.size)
+        jet_heatmap = tf.keras.preprocessing.image.img_to_array(jet_heatmap)
+        img = np.asarray(image)
+        
+        superimposed_img = jet_heatmap * alpha + img
+        superimposed_img = tf.keras.preprocessing.image.array_to_img(superimposed_img)
+        return superimposed_img, preds
+    
+    async def predict(self, file, heatmap):
+        if heatmap:
+            response = await self.makeHeatmap(file)
+        else:
+            response = await self.makePredictJson(file)
+        
+        return response
+    
+    async def makeHeatmap(self, file):
+        model_input, image = await self.load_image_from_request(file)
+        
+        superimposed_img, __ = self.makeGradcamHeatmap(model_input, image)
+        
+        img_bytes = io.BytesIO()
+        superimposed_img.save(img_bytes, format='PNG')
+        img_bytes = img_bytes.getvalue()
+        
+        return Response(content=img_bytes, media_type='image/png')
+    
+    async def makePredictJson(self, file):
         
         inference_start_time = time()
         
-        model_input = await self.load_image_from_request(file)
+        model_input, _ = await self.load_image_from_request(file)
         
         # Separate by existing functions
-        if hasattr(self.model, 'predict'):
-            model_output = self.model.predict(model_input)
-        elif hasattr(self.model, 'run'):
-            output_names = [outp.name for outp in self.model.get_outputs()]
-            input = self.model.get_inputs()[0]
-            model_output = self.model.run(output_names, {input.name: model_input})[0]
+        if self.model_info['type'] == 'keras':
+            __, model_output = self.model(model_input, training=False)
+            model_output = np.array(model_output)
+        else:
+            if hasattr(self.model, 'predict'):
+                model_output = self.model.predict(model_input)
+            elif hasattr(self.model, 'run'):
+                output_names = [outp.name for outp in self.model.get_outputs()]
+                input = self.model.get_inputs()[0]
+                model_output = self.model.run(output_names, {input.name: model_input})[0]
         
         # Separate by type of output
         if isinstance(model_output, dict):

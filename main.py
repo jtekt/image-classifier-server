@@ -51,8 +51,10 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(image: bytes = File()):
-    result = await classifier.predict(image)
+async def predict(image: bytes = File(), heatmap: bool = False):
+    if classifier.model_info['type'] != 'keras' and heatmap:
+        raise HTTPException(status_code=400, detail="GradCAM is NOT available. Please upload KERAS model, if you want to use GradCAM.")
+    result = await classifier.predict(image, heatmap)
     return result
 
 @app.post("/model")
