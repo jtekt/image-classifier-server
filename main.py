@@ -99,9 +99,18 @@ if mlflow_tracking_uri:
 
     @app.get("/mlflow/models")
     async def getMlflowModels():
+
         models = []
-        for model in client.search_registered_models():
-            models.append(model)
+        page_token = ''
+
+        while True:
+            res = client.search_registered_models(page_token=page_token)
+            page_token = res.token
+            for model in res:
+                models.append(model)
+            if page_token == '':
+                break
+
         return models
     
     @app.get("/mlflow/models/{model}/versions")
