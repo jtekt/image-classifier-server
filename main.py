@@ -98,16 +98,16 @@ if mlflow_tracking_uri:
     client = MlflowClient()
 
     @app.get("/mlflow/models")
-    async def getMlflowModels(model_name: str=''):
+    async def getMlflowModels(search: str='', page_token: str=""):
         models = []
         
-        filter_string = f"name ILIKE '%{model_name}%'"
-        res = client.search_registered_models(filter_string=filter_string)
-        
+        filter_string = f"name ILIKE '%{search}%'"
+        res = client.search_registered_models(filter_string=filter_string, page_token=page_token)
+
         for model in res:
             models.append(model)
 
-        return models
+        return {"models": models, "page_token": res.token}
     
     @app.get("/mlflow/models/{model}/versions")
     async def getMlflowModelVersions(model):
