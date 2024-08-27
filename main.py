@@ -51,8 +51,10 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(image: bytes = File()):
-    result = await classifier.predict(image)
+async def predict(image: bytes = File(), heatmap: bool = False):
+    if classifier.model_info['type'] != 'keras' and heatmap:
+        raise HTTPException(status_code=400, detail="GradCAM is NOT available. Please upload KERAS model, if you want to use GradCAM.")
+    result = await classifier.predict(image, heatmap)
     return result
 
 @app.post("/model")
@@ -96,11 +98,16 @@ if mlflow_tracking_uri:
     client = MlflowClient()
 
     @app.get("/mlflow/models")
-    async def getMlflowModels():
+    async def getMlflowModels(search: str='', page_token: str=""):
         models = []
-        for model in client.search_registered_models():
+        
+        filter_string = f"name ILIKE '%{search}%'"
+        res = client.search_registered_models(filter_string=filter_string, page_token=page_token)
+
+        for model in res:
             models.append(model)
-        return models
+
+        return {"models": models, "page_token": res.token}
     
     @app.get("/mlflow/models/{model}/versions")
     async def getMlflowModelVersions(model):

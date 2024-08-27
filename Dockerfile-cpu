@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.11.0
+FROM tensorflow/tensorflow:2.12.0
 
 WORKDIR /usr/src/app
 
@@ -11,7 +11,7 @@ RUN apt-get install -y cmake libgl1 libglib2.0-0
 
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
-RUN pip3 install onnxruntime
+RUN pip3 install onnxruntime==1.14.0
 
 EXPOSE 80
 
