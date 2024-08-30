@@ -1,9 +1,8 @@
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
-from fastapi import HTTPException, Response
+from fastapi import Response
 from os import getenv, path
-import onnx
 import onnxruntime
 from dotenv import load_dotenv
 from time import time

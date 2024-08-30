@@ -5,14 +5,11 @@ from classifier import Classifier
 from utils import getGpus, lookDeeperIfNeeded
 import zipfile
 import io
-from os import path, remove, mkdir
+from os import mkdir
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
-import requests
 import shutil
-import numpy as np
-from PIL import Image
 
 classifier = Classifier()
 
@@ -80,7 +77,6 @@ async def upload_model(model: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(model.file, buffer)
     else:
-        # error script
         raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
     
     # load model
@@ -120,7 +116,10 @@ if mlflow_tracking_uri:
     async def updateMlflowModel(mlflowModel: MlflowModel):
         if prevent_model_update:
             raise HTTPException(status_code=403, detail="Model update is forbidden")
-        classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
+        model = mlflowModel.dict()["name"]
+        version = mlflowModel.dict()["version"]
+        classifier.load_model_from_mlflow(model, version)
         return {
-            "result": "OK"
+            "model": model,
+            "version": version
         }
