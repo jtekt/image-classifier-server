@@ -5,7 +5,7 @@ from classifier import Classifier
 from utils import getGpus, lookDeeperIfNeeded
 import zipfile
 import io
-from os import mkdir
+from os import makedirs
 import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
@@ -50,7 +50,7 @@ async def root():
 @app.post("/predict")
 async def predict(image: bytes = File(), heatmap: bool = False):
     if classifier.model_info['type'] != 'keras' and heatmap:
-        raise HTTPException(status_code=400, detail="GradCAM is NOT available. Please upload KERAS model, if you want to use GradCAM.")
+        raise HTTPException(status_code=400, detail="Heatmap is NOT available. Please upload KERAS model, if you want to use Heatmap.")
     result = await classifier.predict(image, heatmap)
     return result
 
@@ -63,16 +63,16 @@ async def upload_model(model: UploadFile = File(...)):
     # save model file according to file extension
     if model.filename.endswith('.zip'):
         # reset model folder
-        shutil.rmtree("./model")
-        mkdir("./model")
+        shutil.rmtree("./model", ignore_errors=True)
+        makedirs("./model", exist_ok=True)
         with io.BytesIO(await model.read()) as tmp_stream, zipfile.ZipFile(tmp_stream, 'r') as zip_ref:
             zip_ref.extractall("./model")
         # unify folder structure when unzipping
         lookDeeperIfNeeded('./model')
     elif model.filename.endswith('.onnx'):
         # reset model folder
-        shutil.rmtree("./model")
-        mkdir("./model")
+        shutil.rmtree("./model", ignore_errors=True)
+        makedirs("./model", exist_ok=True)
         file_path = f'./model/{model.filename}'
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(model.file, buffer)
