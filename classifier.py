@@ -209,8 +209,9 @@ class Classifier:
         
         self.get_target_size()
 
-        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size, interpolation='bilinear')
+        img = keras.preprocessing.image.load_img(fileBuffer)
         img_array = keras.preprocessing.image.img_to_array(img)
+        img_array = tf.image.resize(img_array, self.target_size, method="bilinear")
 
         # Create batch axis
         return tf.expand_dims(img_array, 0).numpy(), image
