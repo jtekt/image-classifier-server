@@ -1,3 +1,4 @@
+from configparser import Interpolation
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -208,7 +209,7 @@ class Classifier:
         
         self.get_target_size()
 
-        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
+        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size, interpolation='bilinear')
         img_array = keras.preprocessing.image.img_to_array(img)
 
         # Create batch axis
@@ -231,7 +232,7 @@ class Classifier:
         initial_startup_time_start = time()
         # reshape dummy data
         fileBuffer = io.BytesIO(num_bytes)
-        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
+        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size, interpolation='bilinear')
         img_array = keras.preprocessing.image.img_to_array(img)
         # Create batch axis
         model_input = tf.expand_dims(img_array, 0).numpy()
