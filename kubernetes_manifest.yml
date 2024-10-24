@@ -26,9 +26,11 @@ spec:
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED_CPU}
+          ports:
+            - containerPort: 80
           env:
             - name: MLFLOW_TRACKING_URI
-              value: http://mlflow.mlflow:5000
+              value: http://172.16.98.151:30273
       #     volumeMounts:
       #       - mountPath: /usr/src/app/model
       #         name: model
@@ -48,3 +50,5 @@ spec:
   ports:
     - port: 80
       nodePort: ${K8S_NODEPORT}
+
+docker run -p 8080:80 public.ecr.aws/jtekt-corporation/image-classifier-server:gpu-fd0f7ae0

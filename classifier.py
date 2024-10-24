@@ -1,20 +1,19 @@
-from configparser import Interpolation
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
-from fastapi import Response
-from os import getenv, path
+from fastapi import HTTPException
+from os import getenv, path, listdir
+import onnx
 import onnxruntime
 from dotenv import load_dotenv
 from time import time
 import json
 import io
 from glob import glob
-import json
-import mlflow 
+import mlflow
 from PIL import Image
 from config import mlflow_tracking_uri, provider, warm_up
-import matplotlib.pyplot as plt
+import traceback
 
 load_dotenv()
 
@@ -25,322 +24,328 @@ class Classifier:
     
     def __init__(self):
         self.model_path = "./model"
+        self.models = {}
         self.model_loaded = False
-        self.last_conv_layer_name = 'top_conv'
-
-        # Attribute to hold additional information regarding the model
-        self.model_info = {  }
+        # モデルに関する追加情報を保持する属性
+        self.model_infos = {}
 
         self.mlflow_model = None
 
-        # Setting model parameters using env
+        # 環境変数を使ってモデルパラメータを設定
         if getenv('CLASS_NAMES'):
-            print('Classes set from env')
-            self.model_info['class_names'] = getenv("CLASS_NAMES").split(',')
-        
-        # load model files first if they exist in the local directory
-        # load model from local directory
-        if glob(path.join(self.model_path, "*")):
-            self.load_model_from_local()
-        # load model from mlflow
-        elif mlflow_tracking_uri and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
-            try:
-                self.load_model_from_mlflow(getenv('MLFLOW_MODEL_NAME'), getenv('MLFLOW_MODEL_VERSION'))
-            except Exception as e:
-                print('[AI] Failed to load model')
-                print(e)
+            print('環境変数からクラス名を設定')
+            self.class_names = getenv("CLASS_NAMES").split(',')
 
-    def readModelInfo(self):
-        file_path = path.join(self.model_path, 'modelInfo.json')
+        # model_path内の各サブディレクトリからモデルをロード
+        self.load_models()
+
+    def load_models(self):
+        subdirs = [d for d in listdir(self.model_path) if path.isdir(path.join(self.model_path, d))]
+        for subdir in subdirs:
+            model_dir = path.join(self.model_path, subdir)
+            if glob(path.join(model_dir, "*")):
+                try:
+                    model, model_info = self.load_model_from_local(model_dir)
+                    self.models[subdir] = model
+                    self.model_infos[subdir] = model_info
+                except Exception as e:
+                    print(f'[AI] {model_dir} からモデルのロードに失敗')
+                    print(e)
+                    print(traceback.format_exc())
+            elif mlflow_tracking_uri and getenv('MLFLOW_MODEL_VERSION') and getenv('MLFLOW_MODEL_NAME'):
+                try:
+                    self.load_model_from_mlflow(getenv('MLFLOW_MODEL_NAME'), getenv('MLFLOW_MODEL_VERSION'))
+                except Exception as e:
+                    print('[AI] MLflowからのモデルのロードに失敗')
+                    print(e)
+
+    def read_model_info(self, model_dir):
+        file_path = path.join(model_dir, 'modelInfo.json')
         with open(file_path, 'r') as openfile:
             return json.load(openfile)
-        
 
     def load_model_from_mlflow(self, model_name, model_version):
-        # load any format model mlflow 
-        # Reset model info
+        # mlflowから任意の形式のモデルをロード
         self.model_info = {}
-        if hasattr(self, 'model'):
-            del self.model
         
-        print(f'[AI] Downloading model {model_name} v{model_version} from MLflow at {mlflow_tracking_uri}')
-        
-        model_uri = f'models:/{model_name}/{model_version}'
-        
-        mlmodel_fname = mlflow.models.model.MLMODEL_FILE_NAME
-        repo = mlflow.store.artifact.artifact_repository_registry.get_artifact_repository(model_uri)
-        repo._download_file(mlmodel_fname, mlmodel_fname)
-        mlmodel = mlflow.models.Model.load(mlmodel_fname)
+        print(f'[AI] MLflowの {mlflow_tracking_uri} からモデル {model_name} v{model_version} をダウンロード')
 
-        if mlmodel.flavors.get('tensorflow'):
-            print('[AI] Loading keras model')
-            tmp_model = mlflow.keras.load_model(model_uri)
-            
-            self.model = tf.keras.models.Model(
-                tmp_model.input,
-                [tmp_model.get_layer(self.last_conv_layer_name).output, tmp_model.output]
-            )
-            
-            del tmp_model
-
-            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-            self.model_loaded = True
-            self.model_info['origin'] = "mlflow"
-            self.model_info['type'] = 'keras'
-            
-        elif mlmodel.flavors.get('onnx'):
-            print('[AI] Loading onnx model')
-            self.model = mlflow.pyfunc.load_model(model_uri)
-            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-            self.model_loaded = True
-            self.model_info['origin'] = "mlflow"
-            self.model_info['type'] = 'onnx'
-            
-        else:
-            print('[AI] Loading model')
-            self.model = mlflow.pyfunc.load_model(model_uri)
-            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
-            self.model_loaded = True
-            self.model_info['origin'] = "mlflow"
-            self.model_info['type'] = 'other'
-    
-        print('[AI] Model loaded')
+        self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
+        self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+        self.model_loaded = True
+        self.model_info['origin'] = "mlflow"
+        
+        print('[AI] モデルがロードされました')
         
         if warm_up:
             self.warm_up()
     
-    def load_model_from_local(self):
-        # load model from local directory
-        # load ONNX files first, if available
-        if hasattr(self, 'model'):
-            del self.model
+    def load_model_from_local(self, model_dir):
+        # ローカルディレクトリからモデルをロード
+        model = None
+        model_info = {}
         try:
-            if glob(path.join(self.model_path, "*.onnx")):
-                self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
-                self.load_model_from_onnx()
+            if glob(path.join(model_dir, "*.onnx")):
+                self.model_name = path.basename(glob(path.join(model_dir, "*.onnx"))[0])
+                model, model_info = self.load_model_from_onnx(model_dir)
             else:
-                self.load_model_from_keras()
-       
+                model, model_info = self.load_model_from_keras(model_dir)
+                
+            if warm_up:
+                self.warm_up()
         except Exception as e:
-            print('[AI] Failed to load model from local directory')
+            print('[AI] ローカルディレクトリからのモデルロードに失敗')
             print(e)
-            
-        if warm_up:
-            self.warm_up()
+            print(traceback.format_exc())
+        return model, model_info
     
-    def load_model_from_keras(self):
-
-        # Reset model info
-        self.model_info = {}
-
-        print('[AI] Loading keras model')
+    def load_model_from_keras(self, model_dir):
+        print('[AI_keras] ロード中:', model_dir)
         
-        print(f'[AI] Loading from local directory at {self.model_path}')
-        
-        tmp_model = keras.models.load_model(self.model_path)
-        
-        self.model = tf.keras.models.Model(
-            tmp_model.inputs,
-            [tmp_model.get_layer(self.last_conv_layer_name).output, tmp_model.output]
-        )
-        
-        del tmp_model
+        model_info = {}
+        model = keras.models.load_model(model_dir)
         
         self.model_loaded = True
-        self.model_info['origin'] = "folder"
-        self.model_info['type'] = "keras"
+        model_info['origin'] = "folder"
+        model_info['type'] = "keras"
 
-        # Get model info from .json file
+        # .jsonファイルからモデル情報を取得
         try:
-            jsonModelInfo = self.readModelInfo()
-            self.model_info = {**self.model_info, **jsonModelInfo}
+            json_model_info = self.read_model_info(model_dir)
+            model_info = {**model_info, **json_model_info}
         except:
-            print('Failed to load .json model information')
+            print('JSONファイルからのモデル情報のロードに失敗')
 
-        print('[AI] Model loaded')
+        print('[AI] モデルがロードされました')
+        return model, model_info
         
-    def load_model_from_onnx(self):
-        
-        self.model_info = {}
-        print('[AI] Loading onnx model')
-        
-        print(f'[AI] Loading from local directory at {self.model_path}')
+    def load_model_from_onnx(self, model_dir):
+        model_info = {}
+        print('[AI_onnx] ロード中:', model_dir)
 
-        file_path = path.join(self.model_path, self.model_name)
+        file_path = path.join(model_dir, self.model_name)
         if not path.isfile(file_path):
-            raise ValueError(f"Model file {file_path} does not exist")
+            raise ValueError(f"モデルファイル {file_path} が存在しません")
         
-        # Set provider of onnxruntime
+        # onnxruntimeのプロバイダーを設定
         available_providers = onnxruntime.get_available_providers()
-            
+        
         if provider in available_providers:
             providers = [provider]
         else:
             providers = available_providers
-            
-        self.model = onnxruntime.InferenceSession(file_path, providers=providers)
         
-        self.model_loaded = True
-        self.model_info['origin'] = "folder"
-        self.model_info['type'] = "onnx"
-        self.model_info['providers'] = providers
+        # onnxをGPUで推論するときの設定
+        providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+        # セッションオプションを設定して、スレッド数を明示的に指定
+        session_options = onnxruntime.SessionOptions()
+        session_options.intra_op_num_threads = 1  # 必要に応じてスレッド数を調整
 
-        print('[AI] Model loaded')
-        print(f'[AI] ONNX Runtime Providers: {str(providers)}')
+        model = onnxruntime.InferenceSession(file_path, sess_options=session_options, providers=providers)
         
-    def get_target_size(self):
-        # Separate by the method of getting input size
-        if hasattr(self.model, 'input'):
-            self.target_size = (self.model.input.shape[1] , self.model.input.shape[2])
+        model_info['origin'] = "folder"
+        model_info['type'] = "onnx"
+        model_info['providers'] = providers
 
-        elif hasattr(self.model, 'metadata'):
-            input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
-            self.target_size = (input_shape[1], input_shape[2])
-            
-        elif hasattr(self.model, 'get_inputs'):
-            input_shape = self.model.get_inputs()[0].shape
-            self.target_size = (input_shape[1], input_shape[2])
+        print('[AI] モデルがロードされました')
+        print(f'[AI] ONNX ランタイムプロバイダー: {str(providers)}')
+
+        return model, model_info
         
-    async def load_image_from_request(self, file):
+    def get_target_size(self, model):
+        # 入力サイズの取得方法に応じて分ける
+        if hasattr(model, 'input'):
+            target_size = (model.input.shape[1], model.input.shape[2])
+
+        elif hasattr(model, 'metadata'):
+            input_shape = model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
+            target_size = (input_shape[1], input_shape[2])
+            
+        elif hasattr(model, 'get_inputs'):
+            input_shape = model.get_inputs()[0].shape
+            target_size = (input_shape[1], input_shape[2])
+        return target_size
+
+
+    async def load_image_from_request(self, file,model_name):
+        import cv2
         fileBuffer = io.BytesIO(file)
-        image = Image.open(io.BytesIO(file))
-        
-        self.target_size = None
-        
-        self.get_target_size()
 
-        img = keras.preprocessing.image.load_img(fileBuffer)
-        img_array = keras.preprocessing.image.img_to_array(img)
-        img_array = tf.image.resize(img_array, self.target_size, method="bilinear")
-
-        # Create batch axis
-        return tf.expand_dims(img_array, 0).numpy(), image
-
-    def get_class_name(self, prediction):
-        # Name output if possible
-        max_index = np.argmax(prediction)
-        return self.model_info['class_names'][max_index]
-    
-    def warm_up(self):
-        # make dummy data
-        self.get_target_size()
-        input_ = np.ones(self.target_size, dtype='int8')
-        num_pil = Image.fromarray(input_)
-        num_byteio = io.BytesIO()
-        num_pil.save(num_byteio, format='png')
-        num_bytes = num_byteio.getvalue()
+        # モデルのターゲットサイズを取得
+        self.target_size = self.get_target_size(self.models[model_name])
         
-        initial_startup_time_start = time()
-        # reshape dummy data
-        fileBuffer = io.BytesIO(num_bytes)
-        img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size, interpolation='bilinear')
-        img_array = keras.preprocessing.image.img_to_array(img)
-        # Create batch axis
-        model_input = tf.expand_dims(img_array, 0).numpy()
-        # predict
-        if self.model_info['type'] == 'keras':
-            __, model_output = self.model(model_input, training=False)
-            model_output = np.array(model_output)
-        else:
+        resized_images = np.array([cv2.resize(img, self.target_size) for img in file])
+        
+        
+        print("resized_image_shape:",resized_images.shape)
+        # img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
+        # img_array = keras.preprocessing.image.img_to_array(img)
+
+        # バッチ軸を作成
+        return resized_images
+        # return tf.expand_dims(img_array, 0).numpy()
+
+        def get_class_name(self, prediction, model_info):
+            # 出力に名前を付ける
+            max_index = np.argmax(prediction)
+            return model_info['class_names'][max_index]
+        
+        def warm_up(self):
+            # make dummy data
+            self.get_target_size()
+            input_ = np.ones(self.target_size, dtype='float32')
+            num_pil = Image.fromarray(input_)
+            num_byteio = io.BytesIO()
+            num_pil.save(num_byteio, format='png')
+            num_bytes = num_byteio.getvalue()
+            
+
+            initial_startup_time_start = time()
+            # reshape dummy data
+            fileBuffer = io.BytesIO(num_bytes)
+            img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
+            img_array = keras.preprocessing.image.img_to_array(img)
+            # Create batch axis
+            model_input = tf.expand_dims(img_array, 0).numpy()
+            # predict
             if hasattr(self.model, 'predict'):
                 model_output = self.model.predict(model_input)
             elif hasattr(self.model, 'run'):
                 output_names = [outp.name for outp in self.model.get_outputs()]
                 input = self.model.get_inputs()[0]
                 model_output = self.model.run(output_names, {input.name: model_input})[0]
-        # Separate by type of output
-        if isinstance(model_output, dict):
-            prediction = model_output['pred'][0]
-        else:
-            prediction = model_output[0]
-        initial_startup_time = time() - initial_startup_time_start
-        print('[AI] The initial startup of model is done.')
-        print('[AI] Initial startup time:', initial_startup_time, 's')
-    
-    def makeGradcamHeatmap(self, model_input, image, pred_index=None, alpha=0.3):
+            # Separate by type of output
+            if isinstance(model_output, dict):
+                prediction = model_output['pred'][0]
+            else:
+                prediction = model_output[0]
+            initial_startup_time = time() - initial_startup_time_start
+            print('[AI] The initial startup of model is done.')
+            print('[AI] Initial startup time:', initial_startup_time, 's')
         
-        with tf.GradientTape() as tape:
-            last_conv_layer_output, preds = self.model(model_input, training=False)
-            if pred_index is None:
-                pred_index = tf.argmax(preds[0])
-            class_channel = preds[:, pred_index]
+            
+    async def predict_batch(self, image_list, model_name, process_info):
+        if model_name not in self.models:
+            raise ValueError(f"モデル {model_name} が見つかりません")
+
+        model = self.models[model_name]
+        model_info = self.model_infos[model_name]
+
+        image_list = await self.load_image_from_request(image_list, model_name)
+
+        # 画像の形状を確認
+        image_list = np.array(image_list)
+        if image_list.shape[1:] != (224, 224, 3):
+            raise ValueError(f"入力画像の形状が正しくありません: {image_list.shape}")
+
+        image_list = image_list.astype('float32')
+        image_list /= 255.0
+
+        # バッチ全体を一度に推論
+        model_output = await self.predict(image_list, model_name)
+
+        print("モデルの出力:", model_output)
+
+        # prediction と process_info を集約
+        # 'prediction'と'process_info'は行列形式で配置
+        max_row = max([info['row'] for info in process_info])
+        max_col = max([info['col'] for info in process_info])
         
-        grads = tape.gradient(class_channel, last_conv_layer_output)
-        
-        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-        
-        last_conv_layer_output = last_conv_layer_output[0]
-        heatmap = last_conv_layer_output @ pooled_grads[..., tf.newaxis]
-        heatmap = tf.squeeze(heatmap)
-        
-        heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
-        heatmap = np.int8(255 * heatmap.numpy())
-        jet = plt.get_cmap('jet')
-        
-        jet_colors = jet(np.arange(256))[:, :3]
-        jet_heatmap = jet_colors[heatmap]
-        
-        jet_heatmap = tf.keras.preprocessing.image.array_to_img(jet_heatmap)
-        jet_heatmap = jet_heatmap.resize(image.size)
-        jet_heatmap = tf.keras.preprocessing.image.img_to_array(jet_heatmap)
-        img = np.asarray(image)
-        
-        superimposed_img = jet_heatmap * alpha + img
-        superimposed_img = tf.keras.preprocessing.image.array_to_img(superimposed_img)
-        return superimposed_img, preds
-    
-    async def predict(self, file, heatmap):
-        if heatmap:
-            response = await self.makeHeatmap(file)
-        else:
-            response = await self.makePredictJson(file)
-        
+        response = {
+            'prediction': [[] for _ in range(max_row)],  # 行数に合わせて空のリストを準備
+            'process_info': [[] for _ in range(max_row)],
+            'inference_time': model_output['inference_time']  # バッチ全体に対して1つの推論時間
+        }
+
+        # 各画像の予測と process_info を row, col に従って収集
+        for i, info in enumerate(process_info):
+            row = info['row'] - 1  # 1-based indexを0-basedに変更
+            col = info['col'] - 1  # 1-based indexを0-basedに変更
+            
+            # prediction と process_info の位置を揃える
+            response['prediction'][row].append(model_output['prediction'][i])
+            response['process_info'][row].append(info)
+
         return response
+
+  
     
-    async def makeHeatmap(self, file):
-        model_input, image = await self.load_image_from_request(file)
+    # async def predict_batch(self, image_list, model_name):
+    #     if model_name not in self.models:
+    #         raise ValueError(f"モデル {model_name} が見つかりません")
+
+    #     model = self.models[model_name]
+    #     model_info = self.model_infos[model_name]
         
-        superimposed_img, __ = self.makeGradcamHeatmap(model_input, image)
         
-        img_bytes = io.BytesIO()
-        superimposed_img.save(img_bytes, format='PNG')
-        img_bytes = img_bytes.getvalue()
+    #     image_list = await self.load_image_from_request(image_list,model_name)
+
+    #     # 画像リストの形状が正しいことを確認
+    #     image_list = np.array(image_list)
+    #     if image_list.shape[1:] != (224, 224, 3):
+    #         raise ValueError(f"入力画像の形状が正しくありません: {image_list.shape}")
         
-        return Response(content=img_bytes, media_type='image/png')
-    
-    async def makePredictJson(self, file):
         
+    #     image_list = image_list.astype('float32')
+    #     image_list /= 255.0
+
+    #     # バッチ全体を一度に推論
+    #     model_output = await self.predict(image_list, model_name)
+
+    #     print("モデルの出力:", model_output)
+
+    #     predictions = []
+
+    #     # 各画像の予測結果を追加
+    #     for i in range(len(image_list)):
+    #         prediction_result = {
+    #             'prediction': model_output['prediction'][i],
+
+
+    async def predict(self, file, model_name):
+        if model_name not in self.models:
+            raise ValueError(f"モデル {model_name} が見つかりません")
+
+        model = self.models[model_name]
+        model_info = self.model_infos[model_name]
+
+        # model_input = await self.load_image_from_request(file,model_name)
+
+        print("モデル:", model)
+        print("モデル情報:", model_info)
+
         inference_start_time = time()
-        
-        model_input, _ = await self.load_image_from_request(file)
-        
-        # Separate by existing functions
-        if self.model_info['type'] == 'keras':
-            __, model_output = self.model(model_input, training=False)
-            model_output = np.array(model_output)
-        else:
-            if hasattr(self.model, 'predict'):
-                model_output = self.model.predict(model_input)
-            elif hasattr(self.model, 'run'):
-                output_names = [outp.name for outp in self.model.get_outputs()]
-                input = self.model.get_inputs()[0]
-                model_output = self.model.run(output_names, {input.name: model_input})[0]
-        
-        # Separate by type of output
-        if isinstance(model_output, dict):
-            prediction = model_output['pred'][0]
-        else:
-            prediction = model_output[0]
+        model_input = file
+
+        model_output = None
+
+        # 既存の関数に応じて分ける
+        if hasattr(model, "predict"):
+            model_output = model.predict(model_input)
+        elif hasattr(model, "run"):
+            output_names = [outp.name for outp in model.get_outputs()]
+            input = model.get_inputs()[0]
+            model_output = model.run(output_names, {input.name: model_input})[0]
+            print(output_names)
+
+        # model_outputがNoneでないことを確認する
+        if model_output is None:
+            raise ValueError(
+                "モデルの出力がNoneです。モデルの推論が正しく実行されませんでした。"
+            )
 
         inference_time = time() - inference_start_time
 
+        print(model_output)
         response = {
-            'prediction': prediction.tolist(),
-            'inference_time': inference_time
+            "prediction": model_output.tolist(),
+            "inference_time": inference_time,
         }
 
-        # Add class name if class names available
-        if 'class_names' in self.model_info:
-            response['class_name'] = self.get_class_name(prediction)
+        # クラス名が利用可能な場合は追加
+        if "class_names" in model_info:
+            response["class_names"] = [
+                self.get_class_name(pred, model_info) for pred in model_output
+            ]
 
         return response
