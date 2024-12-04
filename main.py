@@ -48,10 +48,8 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(image: bytes = File(), heatmap: bool = False):
-    if classifier.model_info['type'] != 'keras' and heatmap:
-        raise HTTPException(status_code=400, detail="Heatmap is NOT available. Please upload KERAS model, if you want to use Heatmap.")
-    result = await classifier.predict(image, heatmap)
+async def predict(image: bytes = File()):
+    result = await classifier.predict(image)
     return result
 
 @app.post("/model")
@@ -77,7 +75,8 @@ async def upload_model(model: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(model.file, buffer)
     else:
-        raise HTTPException(status_code=400, detail="Invalid file type. Only .zip and .onnx files are accepted.")
+        # error script
+        raise HTTPException(status_code=400, detail="Invalid file type. Only .zip or .onnx files are accepted.")
     
     # load model
     classifier.load_model_from_local()
@@ -116,10 +115,7 @@ if mlflow_tracking_uri:
     async def updateMlflowModel(mlflowModel: MlflowModel):
         if prevent_model_update:
             raise HTTPException(status_code=403, detail="Model update is forbidden")
-        model = mlflowModel.dict()["name"]
-        version = mlflowModel.dict()["version"]
-        classifier.load_model_from_mlflow(model, version)
+        classifier.load_model_from_mlflow(mlflowModel.dict()["name"], mlflowModel.dict()["version"])
         return {
-            "model": model,
-            "version": version
+            "result": "OK"
         }
