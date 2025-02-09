@@ -26,6 +26,13 @@ spec:
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED_CPU}
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 500m
+            limits:
+              memory: 4Gi
+              cpu: 2000m
           env:
             - name: MLFLOW_TRACKING_URI
               value: http://mlflow.mlflow:5000
