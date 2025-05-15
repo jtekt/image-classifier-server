@@ -68,13 +68,10 @@ class Classifier:
         model_uri = f'models:/{model_name}/{model_version}'
         
         mlmodel = yaml.safe_load(mlflow.artifacts.load_text(f'{model_uri}/MLmodel'))
-        print(mlmodel['flavors'])
 
-        # if mlmodel.flavors.get('tensorflow'):
         if mlmodel['flavors'].get('tensorflow'):
             print('[AI] Loading keras model')
             self.model_info['type'] = 'keras'
-        # elif mlmodel.flavors.get('onnx'):
         elif mlmodel['flavors'].get('onnx'):
             print('[AI] Loading onnx model')
             self.model_info['type'] = 'onnx'
@@ -180,11 +177,11 @@ class Classifier:
             self.target_size = input_shape[1:4]
 
         if self.target_size.index(min(self.target_size)) == 0:
-            print('[AI] This model is from torch.')
-            self.model_info['format'] = 'torch'
+            print('[AI] This model is channels first.')
+            self.model_info['format'] = 'NCHW'
         elif self.target_size.index(min(self.target_size)) == 2:
-            print('[AI] This model is from keras.')
-            self.model_info['format'] = 'keras'
+            print('[AI] This model is channels last.')
+            self.model_info['format'] = 'NHWC'
         else:
             print('[AI] This model is from other.')
             self.model_info['format'] = 'other'
@@ -195,9 +192,8 @@ class Classifier:
 
         img = tf.keras.preprocessing.image.load_img(fileBuffer)
         img_array = tf.keras.preprocessing.image.img_to_array(img)
-        img_array = tf.image.resize(img_array, self.target_size[1:3], method="bilinear").numpy()
         
-        if self.model_info['format'] == 'torch':
+        if self.model_info['format'] == 'NCHW':
             img_array = tf.image.resize(img_array, self.target_size[1:3], method="bilinear").numpy()
             img_array = img_array.transpose((2, 0, 1)) / 255.0
         else:
