@@ -1,3 +1,5 @@
 models
 model
+docker-compose.yml
 image.jpg
+Dockerfile_prod
