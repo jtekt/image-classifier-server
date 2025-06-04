@@ -14,7 +14,7 @@ import requests
 import shutil
 import numpy as np
 from PIL import Image
-import image_preprocess_mask
+import test.image_preprocess_mask as image_preprocess_mask
 import base64
 import base64_to_image
 import dummy_pred
@@ -74,12 +74,12 @@ from fastapi.responses import JSONResponse
 @app.post("/predict")
 # async def predict(image: bytes = File()):
 async def predict(item: getitem):
-    # start_time = time.time()  # 計測開始
+    # start_time = time.time() 
     process_image_list = await base64_to_image.base64_to_image(item.images)
 
-    start_time = time.time()  # 計測開始
+    start_time = time.time()  
     result = await classifier.predict_batch(process_image_list, item.model)
-    end_time = time.time()  # 計測終了
+    end_time = time.time() 
     elapsed_time = end_time - start_time
 
     print("predict_time", elapsed_time)

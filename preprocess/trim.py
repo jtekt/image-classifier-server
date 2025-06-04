@@ -1,4 +1,6 @@
-# import
+### SACサンプルコード
+
+
 import cv2
 import os
 import numpy as np
@@ -60,13 +62,12 @@ async def process(np_img, params):
             split_img = cv2.cvtColor(split_img, cv2.COLOR_BGR2RGB)
             split_imgs_list.append(split_img)
             
-            # 辞書に座標を保存
             split_coords_list.append({
-                "index": i,           # 画像のインデックス
-                "x": x,               # トリミング開始X座標
-                "y": y,               # トリミング開始Y座標
-                "width": w,           # トリミング領域の幅
-                "height": h           # トリミング領域の高さ
+                "index": i,        
+                "x": x,             
+                "y": y,             
+                "width": w,           
+                "height": h           
             })
             print(split_img.shape)
         

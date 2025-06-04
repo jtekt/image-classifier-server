@@ -210,11 +210,8 @@ class Classifier:
         self.get_target_size()
 
         # img = keras.preprocessing.image.load_img(fileBuffer, target_size=self.target_size)
-        # バイナリで画像を読み込む場合
-        # 各バイナリデータを画像として開く
-        img = Image.fromarray(file)
 
-        # 必要に応じてRGB形式に変換する
+        img = Image.fromarray(file)
         img = img.convert("RGB")
 
         img_array = keras.preprocessing.image.img_to_array(img)
@@ -264,14 +261,14 @@ class Classifier:
     
     async def predict_batch(self, image_list):
 
-        predictions = []  # 各画像の推論結果を格納するリスト
+        predictions = []
 
         for img_data in image_list:
-            # 画像を推論する
+
             print(img_data)
             prediction_result = await self.predict(img_data)
             
-            predictions.append(prediction_result)  # 推論結果をリストに追加
+            predictions.append(prediction_result)  
 
         return predictions
     

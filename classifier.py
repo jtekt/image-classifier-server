@@ -174,7 +174,6 @@ class Classifier:
         if not path.isfile(file_path):
             raise ValueError(f"モデルファイル {file_path} が存在しません")
 
-        # onnxruntimeのプロバイダーを設定
         available_providers = onnxruntime.get_available_providers()
 
         if provider in available_providers:
@@ -182,11 +181,9 @@ class Classifier:
         else:
             providers = available_providers
 
-        # onnxをGPUで推論するときの設定
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        # セッションオプションを設定して、スレッド数を明示的に指定
         session_options = onnxruntime.SessionOptions()
-        session_options.intra_op_num_threads = 1  # 必要に応じてスレッド数を調整
+        session_options.intra_op_num_threads = 1
 
         model = onnxruntime.InferenceSession(
             file_path, sess_options=session_options, providers=providers
@@ -224,7 +221,6 @@ class Classifier:
         return self.model, model_info
 
     def get_target_size(self, model):
-        # 入力サイズの取得方法に応じて分ける
         if hasattr(model, "input"):
             target_size = (model.input.shape[1], model.input.shape[2])
 
@@ -243,10 +239,8 @@ class Classifier:
 
         # fileBuffer = io.BytesIO(file)
 
-        # モデルのターゲットサイズを取得
         self.target_size = self.get_target_size(self.models[model_name])
 
-        # リサイズして  BGR=>RGB変換
         resized_images = np.array(
             [cv2.resize(img, self.target_size)[:, :, ::-1] for img in file]
         )
@@ -257,7 +251,7 @@ class Classifier:
         # return tf.expand_dims(img_array, 0).numpy()
 
         def get_class_name(self, prediction, model_info):
-            # 出力に名前を付ける
+
             max_index = np.argmax(prediction)
             return model_info["class_names"][max_index]
 
@@ -337,13 +331,13 @@ class Classifier:
 
         image_list = await self.load_image_from_request(image_list, model_name)
 
-        # 画像の形状を確認
+
         # image_list = np.array(image_list)
         if image_list.shape[1:] != (224, 224, 3):
             raise ValueError(f"入力画像の形状が正しくありません: {image_list.shape}")
 
         image_list = image_list.astype("float32")
-        # バッチ全体を一度に推論
+
         model_output = await self.predict(image_list, model_name)
 
         print("モデルの出力:", model_output)
@@ -366,7 +360,6 @@ class Classifier:
         model_input = file
         model_output = None
 
-        # 既存の関数に応じて分ける
         if model_info["type"] == "patchcore_cvj":
             model_output, self.dist_raw, self.dist_norm, self.heatmap = model.predict(
                 model_input
@@ -379,7 +372,6 @@ class Classifier:
             model_output = model.run(output_names, {input.name: model_input})[0]
             print(output_names)
 
-        # model_outputがNoneでないことを確認する
         if model_output is None:
             raise ValueError(
                 "モデルの出力がNoneです。モデルの推論が正しく実行されませんでした。"
@@ -406,7 +398,6 @@ class Classifier:
                 "inference_time": inference_time,
             }
 
-        # クラス名が利用可能な場合は追加
         if "class_names" in model_info:
             response["class_names"] = [
                 self.get_class_name(pred, model_info) for pred in model_output
