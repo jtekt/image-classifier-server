@@ -1,8 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, Request, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus, lookDeeperIfNeeded
+from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list
 import zipfile
 import io
 from os import makedirs
@@ -10,6 +10,10 @@ import sys
 from config import prevent_model_update, mlflow_tracking_uri
 from pydantic import BaseModel
 import shutil
+from typing import List, Optional, Tuple
+from PIL import Image
+import base64
+import numpy as np
 
 classifier = Classifier()
 
@@ -48,8 +52,28 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(image: bytes = File()):
-    result = await classifier.predict(image)
+async def predict(request: Request):
+    content_type = request.headers.get("content-type").split(";", 1)[0].strip().lower()
+
+    if content_type == "multipart/form-data":
+        form = await request.form()
+        img_list = []
+
+        for key, val in form.items():
+            if key.startswith("image"):
+                img_array = load_image_from_request(await val.read())
+                img_list.append(img_array)
+        img_list = np.stack(img_list, axis=0)
+
+    elif content_type == "application/json":
+        payload = await request.json()
+        img_list = await base64_to_image_list(payload["images"])
+    
+    else:
+        return error(400, 'content type not supported')
+
+    result = await classifier.predict(img_list)
+
     return result
 
 @app.post("/model")

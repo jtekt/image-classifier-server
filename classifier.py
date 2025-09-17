@@ -187,20 +187,15 @@ class Classifier:
             self.model_info['format'] = 'other'
 
         
-    async def load_image_from_request(self, file):
-        fileBuffer = io.BytesIO(file)
+    async def resize_image(self, img_array):
 
-        img = tf.keras.preprocessing.image.load_img(fileBuffer)
-        img_array = tf.keras.preprocessing.image.img_to_array(img)
-        
         if self.model_info['format'] == 'NCHW':
             img_array = tf.image.resize(img_array, self.target_size[1:3], method="bilinear").numpy()
-            img_array = img_array.transpose((2, 0, 1)) / 255.0
+            img_array = img_array.transpose((0, 3, 1, 2)) / 255.0
         else:
             img_array = tf.image.resize(img_array, self.target_size[0:2], method="bilinear").numpy()
 
-        # Create batch axis
-        return np.expand_dims(img_array, axis=0)
+        return img_array
 
     def get_class_name(self, prediction):
         # Name output if possible
@@ -227,9 +222,9 @@ class Classifier:
     async def predict(self, file):
         
         inference_start_time = time()
-        
-        model_input = await self.load_image_from_request(file)
-        
+
+        model_input = await self.resize_image(file)
+
         # Separate by existing functions
         if hasattr(self.model, 'predict'):
             model_output = self.model.predict(model_input)
@@ -237,15 +232,25 @@ class Classifier:
             output_names = [outp.name for outp in self.model.get_outputs()]
             input = self.model.get_inputs()[0]
             model_output = self.model.run(output_names, {input.name: model_input})[0]
-        
+
         # Separate by type of output
         if isinstance(model_output, dict):
-            prediction = model_output['pred'][0]
+            if model_input.shape[0] == 1:
+                prediction = model_output['pred'][0]
+            else:
+                prediction = model_output['pred']
         else:
-            prediction = model_output[0]
+            if model_input.shape[0] == 1:
+                prediction = model_output[0]
+            else:
+                prediction = model_output
 
-        if prediction.ndim != 1:
-            prediction = np.array(prediction.max())
+        if prediction.ndim >= 3:
+            prediction_list = []
+            for i in range(len(prediction)):
+                pred = prediction[i].max()
+                prediction_list.append(pred)
+            prediction = np.array(prediction_list)
 
         inference_time = time() - inference_start_time
 
