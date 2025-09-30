@@ -51,10 +51,10 @@ def load_image_from_request(file):
     
 def base64_to_numpy(img_base64):
     img_data = base64.b64decode(img_base64)
-    np_img = np.frombuffer(img_data, np.uint8)
-    img_array = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-    return cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+    img_array = load_image_from_request(img_data)
+    return img_array
 
 async def base64_to_image_list(images_base64):
     np_img_list = [base64_to_numpy(img_base64) for img_base64 in images_base64]
+    np_img_list = np.stack(np_img_list, axis=0)
     return np_img_list
