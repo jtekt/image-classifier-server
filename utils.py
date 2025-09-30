@@ -5,7 +5,6 @@ import io
 import tensorflow as tf
 import base64
 import numpy as np
-import cv2
 
 def getGpus():
     devices = device_lib.list_local_devices()

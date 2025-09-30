@@ -2,7 +2,6 @@ protobuf==3.20.3
 fastapi
 uvicorn
 python-multipart
-opencv-python
 python-dotenv
 Pillow
 mlflow
