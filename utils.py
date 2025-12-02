@@ -1,6 +1,10 @@
 from tensorflow.python.client import device_lib
 import os
 import shutil
+import io
+import tensorflow as tf
+import base64
+import numpy as np
 
 def getGpus():
     devices = device_lib.list_local_devices()
@@ -34,3 +38,22 @@ def lookDeeperIfNeeded(parentDirectory):
                     shutil.move(subSubFolderPath, parentDirectory)
                 
                 shutil.rmtree(innerFolderPath, ignore_errors=True)
+
+def load_image_from_request(file):
+
+    fileBuffer = io.BytesIO(file)
+
+    img = tf.keras.preprocessing.image.load_img(fileBuffer)
+    img_array = tf.keras.preprocessing.image.img_to_array(img)
+
+    return img_array
+    
+def base64_to_numpy(img_base64):
+    img_data = base64.b64decode(img_base64)
+    img_array = load_image_from_request(img_data)
+    return img_array
+
+async def base64_to_image_list(images_base64):
+    np_img_list = [base64_to_numpy(img_base64) for img_base64 in images_base64]
+    np_img_list = np.stack(np_img_list, axis=0)
+    return np_img_list
