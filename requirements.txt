@@ -6,3 +6,4 @@ python-dotenv
 Pillow
 mlflow
 onnx==1.14.0
+faiss-gpu
