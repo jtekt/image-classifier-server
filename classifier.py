@@ -187,7 +187,6 @@ class Classifier:
         self.model_info['type'] = "patchcore_cvj"
 
         print('[AI] Model loaded')
-        print(f'[AI] ONNX Runtime Providers: {str(providers)}')
 
     def get_target_size(self):
         # Separate by the method of getting input size
