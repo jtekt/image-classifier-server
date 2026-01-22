@@ -16,6 +16,8 @@ import mlflow
 from config import (
     mlflow_tracking_uri, provider, warm_up,
     class_names, mlflow_model_name, mlflow_model_version,
+    PROV_TRT,
+    PROV_VINO,
 )
 import mlflow_patchcore
 
@@ -161,6 +163,11 @@ class Classifier:
             providers = [provider]
         else:
             providers = available_providers
+
+        if PROV_TRT in providers:
+            providers[providers.index(PROV_TRT)] = (PROV_TRT, {"trt_fp16_enable": True})
+        if PROV_VINO in providers:
+            providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU"})
 
         self.model = onnxruntime.InferenceSession(file_path, providers=providers)
 

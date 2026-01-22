@@ -13,3 +13,9 @@ mlflow_model_name = environ.get('MLFLOW_MODEL_NAME')
 mlflow_model_version = environ.get('MLFLOW_MODEL_VERSION')
 
 faiss_no_use_gpu = False
+
+PROV_TRT  = "TensorrtExecutionProvider"
+#PROV_CUDA = "CUDAExecutionProvider"
+#PROV_CPU  = "CPUExecutionProvider"
+PROV_VINO = "OpenVINOExecutionProvider"
+

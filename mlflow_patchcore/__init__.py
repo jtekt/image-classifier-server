@@ -27,7 +27,13 @@ from mlflow.tracking._model_registry import DEFAULT_AWAIT_MAX_SLEEP_SECONDS
 import onnxruntime
 
 import faiss
-from config import provider, warm_up, faiss_no_use_gpu
+from config import (
+    provider,
+    warm_up,
+    faiss_no_use_gpu,
+    PROV_TRT,
+    PROV_VINO,
+)
 
 
 FLAVOR_NAME = "mlflow_patchcore"
@@ -193,12 +199,14 @@ class _OnnxModelWrapper:
         opt = onnxruntime.SessionOptions()
         opt.intra_op_num_threads = 2
 
-        #providers = ["TensorrtExecutionProvider"]
-        #providers = ["CUDAExecutionProvider"]
-        #providers = ["CPUExecutionProvider"]
         providers = onnxruntime.get_available_providers()
         if provider in providers:
             providers = [provider]
+
+        if PROV_TRT in providers:
+            providers[providers.index(PROV_TRT)] = (PROV_TRT, {"trt_fp16_enable": True})
+        if PROV_VINO in providers:
+            providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU"})
 
         self.rt = onnxruntime.InferenceSession(path, sess_options=opt, providers=providers)
         print(f'[onnx] model load finish. provider={providers}', flush=True)
@@ -223,10 +231,12 @@ class _OnnxModelWrapper:
         self.patchcore_threshold = float(model_meta.metadata.get('patchcore_threshold', '1.0'))
         self.patchcore_index = model_meta.metadata.get('patchcore_class_index', 0)
 
+        """
         # dummy predict
         input_shape = model_meta.flavors.get(FLAVOR_NAME)['input_shape']
         dummy_data = np.zeros((1, *input_shape, 3), dtype=np.float32)
         _, _ = self.rt.run(self.output_names, {self.inputs[0][0]: dummy_data})
+        """
 
         print(f"[PATCHCORE] load time: {time.time() - start_tm}")
 
