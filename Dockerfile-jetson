@@ -6,24 +6,18 @@ COPY --parents *.py requirements.txt mlflow_patchcore/ .
 RUN mkdir ./model
 
 
-RUN << eof
-set -ex
-
-apt-get update
-apt-get install -y libopenblas-dev
-apt-get clean
-rm -rf /var/lib/apt/lists/*
-
-grep -v faiss requirements.txt > requirements-jetson.txt
-curl -L https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -o onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl
-curl -O http://10.115.1.14/kano/image-classifier-server-patchcore_cvj/-/raw/master/faiss-1.7.4-py3-none-any.whl
-
-pip3 install --upgrade pip
-pip3 install -r requirements-jetson.txt
-pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl faiss-1.7.4-py3-none-any.whl
-rm -r *.whl ~/.cache
-
-eof
+RUN set -ex \
+  && apt-get update \
+  && apt-get install -y libopenblas-dev \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
+  && grep -v faiss requirements.txt > requirements-jetson.txt \
+  && curl -L https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -o onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl \
+  && curl -O http://10.115.1.14/kano/image-classifier-server-patchcore_cvj/-/raw/master/faiss-1.7.4-py3-none-any.whl \
+  && pip3 install --upgrade pip \
+  && pip3 install -r requirements-jetson.txt \
+  && pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl faiss-1.7.4-py3-none-any.whl \
+  && rm -r *.whl ~/.cache
 
 ENV LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
 

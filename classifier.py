@@ -167,7 +167,10 @@ class Classifier:
         if PROV_TRT in providers:
             providers[providers.index(PROV_TRT)] = (PROV_TRT, {"trt_fp16_enable": True})
         if PROV_VINO in providers:
-            providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU"})
+            if tuple([int(v) for v in onnxruntime.__version__.split(".")]) > (1, 17, 3):
+                providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU"})
+            else:
+                providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU_FP32"})
 
         self.model = onnxruntime.InferenceSession(file_path, providers=providers)
 
