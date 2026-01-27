@@ -10,21 +10,19 @@ RUN set -ex \
 
 USER onnxruntimedev
 
-COPY --chown=onnxruntimedev:onnxruntimedev --parents *.py requirements.txt mlflow_patchcore/ .
+COPY --chown=onnxruntimedev:onnxruntimedev requirements.txt .
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/onnxruntimedev/.local/bin
 
 RUN set -ex \
-    && mkdir ./model \
     && grep -v faiss requirements.txt > requirements-openvino.txt \
     && echo faiss-cpu >> requirements-openvino.txt \
     && echo 'tensorflow==2.12.0' >> requirements-openvino.txt \
-    && pip3 config set global.index-url 'http://10.56.254.1:3141/root/pypi/+simple/' \
-    && pip3 config set global.trusted-host '10.56.254.1' \
     && pip3 install --upgrade pip \
     && pip3 install -r requirements-openvino.txt \
     && rm -r ~/.cache
 
+COPY --chown=onnxruntimedev:onnxruntimedev --parents *.py mlflow_patchcore/ .
 
 EXPOSE 80
 
