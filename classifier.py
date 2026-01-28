@@ -7,8 +7,6 @@ import yaml
 
 from os import path
 import onnxruntime
-from time import time
-import io
 from glob import glob
 import json
 import mlflow
