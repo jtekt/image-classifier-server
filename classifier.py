@@ -313,7 +313,7 @@ class Classifier:
             'inference_time': inference_time
         }
 
-        if isinstance(model_output, list):
+        if isinstance(model_output, (list, tuple)):
             # patchcore model
             response['patchcore_cvj_raw'] = model_output[1].tolist()
             response['patchcore_cvj_normalized'] = model_output[2].tolist()
