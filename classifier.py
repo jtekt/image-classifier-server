@@ -74,7 +74,6 @@ class Classifier:
             print('[AI] Loading keras model')
             self.model_info['type'] = 'keras'
         elif mlmodel['flavors'].get('onnx'):
-            #"""
             shutil.rmtree(self.model_path, ignore_errors=True)
             self.model_path.mkdir(parents=True, exist_ok=True)
 
@@ -90,13 +89,7 @@ class Classifier:
 
             self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
             self.model_info['origin'] = 'mlflow'
-
-            print('[AI] Model loaded')
-
             return
-            #"""
-            print('[AI] Loading onnx model')
-            self.model_info['type'] = 'onnx'
         elif mlmodel['flavors'].get('mlflow_patchcore'):
             print('[AI] Loading patchcore_cvj model')
             self.model_info['type'] = 'patchcore_cvj'
