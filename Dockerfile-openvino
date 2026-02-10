@@ -1,6 +1,7 @@
-# onnxruntime-openvino version 1.15.0のimageを選択
-# なお，何故onnxruntimeのversionが1.15.0なのかは不明
-FROM openvino/onnxruntime_ep_ubuntu20:2023.0.0
+## onnxruntime-openvino version 1.15.0
+#FROM openvino/onnxruntime_ep_ubuntu20:2023.0.0
+# onnxruntime-openvino version 1.20.0
+FROM openvino/onnxruntime_ep_ubuntu20:2024.4.0
 
 USER root
 

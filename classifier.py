@@ -1,14 +1,14 @@
 from time import time
 import io
+import tempfile
+import shutil
+import pathlib
+import json
 
 import tensorflow as tf
 import numpy as np
 import yaml
-
-from os import path
 import onnxruntime
-from glob import glob
-import json
 import mlflow
 
 from config import (
@@ -26,7 +26,7 @@ if mlflow_tracking_uri:
 class Classifier:
 
     def __init__(self):
-        self.model_path = "./model"
+        self.model_path = pathlib.Path("./model")
         self.model_loaded = False
 
         # Attribute to hold additional information regarding the model
@@ -41,7 +41,7 @@ class Classifier:
 
         # load model files first if they exist in the local directory
         # load model from local directory
-        if glob(path.join(self.model_path, "*")):
+        if list(self.model_path.glob("*")):
             self.load_model_from_local()
         # load model from mlflow
         elif mlflow_tracking_uri and mlflow_model_name and mlflow_model_version:
@@ -52,7 +52,7 @@ class Classifier:
                 print(e)
 
     def readModelInfo(self):
-        file_path = path.join(self.model_path, 'modelInfo.json')
+        file_path = str(self.model_path / "modelInfo.json")
         with open(file_path, 'r') as openfile:
             return json.load(openfile)
 
@@ -74,6 +74,27 @@ class Classifier:
             print('[AI] Loading keras model')
             self.model_info['type'] = 'keras'
         elif mlmodel['flavors'].get('onnx'):
+            #"""
+            shutil.rmtree(self.model_path, ignore_errors=True)
+            self.model_path.mkdir(parents=True, exist_ok=True)
+
+            with tempfile.TemporaryDirectory() as dname:
+                mlflow.artifacts.download_artifacts(
+                    artifact_uri=model_uri,
+                    dst_path=dname,
+                )
+                for p in pathlib.Path(dname).glob("*"):
+                    shutil.move(str(p), self.model_path)
+
+            self.load_model_from_local()
+
+            self.model_info['mlflow_url'] = f'{mlflow_tracking_uri}/#/models/{model_name}/versions/{model_version}'
+            self.model_info['origin'] = 'mlflow'
+
+            print('[AI] Model loaded')
+
+            return
+            #"""
             print('[AI] Loading onnx model')
             self.model_info['type'] = 'onnx'
         elif mlmodel['flavors'].get('mlflow_patchcore'):
@@ -103,11 +124,12 @@ class Classifier:
         if hasattr(self, 'model'):
             del self.model
         try:
-            if (glob(path.join(self.model_path, "fais_nn")) and
-                glob(path.join(self.model_path, "*.onnx"))):
+            fais_nn = list(self.model_path.glob("fais_nn"))
+            onnx    = list(self.model_path.glob("*.onnx"))
+            if (fais_nn and onnx):
                 self.load_model_from_patchcore_cvj()
-            elif glob(path.join(self.model_path, "*.onnx")):
-                self.model_name = path.basename(glob(path.join(self.model_path, "*.onnx"))[0])
+            elif onnx:
+                self.model_name = onnx[0].name
                 self.load_model_from_onnx()
             else:
                 self.load_model_from_keras()
@@ -127,9 +149,9 @@ class Classifier:
         self.model_info = {}
 
         print('[AI] Loading keras model')
-        print(f'[AI] Loading from local directory at {self.model_path}')
+        print(f'[AI] Loading from local directory at {str(self.model_path)}')
 
-        self.model = tf.keras.models.load_model(self.model_path)
+        self.model = tf.keras.models.load_model(str(self.model_path))
 
         self.model_loaded = True
         self.model_info['origin'] = "folder"
@@ -148,11 +170,11 @@ class Classifier:
 
         self.model_info = {}
         print('[AI] Loading onnx model')
-        print(f'[AI] Loading from local directory at {self.model_path}')
+        print(f'[AI] Loading from local directory at {str(self.model_path)}')
 
-        file_path = path.join(self.model_path, self.model_name)
-        if not path.isfile(file_path):
-            raise ValueError(f"Model file {file_path} does not exist")
+        file_path = self.model_path / self.model_name
+        if not file_path.is_file():
+            raise ValueError(f"Model file {str(file_path)} does not exist")
 
         # Set provider of onnxruntime
         available_providers = onnxruntime.get_available_providers()
@@ -170,7 +192,7 @@ class Classifier:
             else:
                 providers[providers.index(PROV_VINO)] = (PROV_VINO, {"device_type": "GPU_FP32"})
 
-        self.model = onnxruntime.InferenceSession(file_path, providers=providers)
+        self.model = onnxruntime.InferenceSession(str(file_path), providers=providers)
 
         self.model_loaded = True
         self.model_info['origin'] = "folder"
@@ -184,9 +206,9 @@ class Classifier:
 
         self.model_info = {}
         print('[AI] Loading patchcore_cvj model')
-        print(f'[AI] Loading from local directory at {self.model_path}')
+        print(f'[AI] Loading from local directory at {str(self.model_path)}')
 
-        self.model = mlflow_patchcore._load_pyfunc(path.join(self.model_path, "model.onnx"))
+        self.model = mlflow_patchcore._load_pyfunc(str(self.model_path / "model.onnx"))
         self.model_info['patchcore_cvj_threshold'] = self.model.patchcore_threshold
         self.model_info['patchcore_cvj_class_index'] = self.model.patchcore_index
 
@@ -267,23 +289,24 @@ class Classifier:
             model_output = self.model.run(output_names, {input.name: model_input})[0]
 
         # Separate by type of output
-        if self.model_info['type'] == 'patchcore_cvj':
-            if model_input.shape[0] == 1:
-                model_output = [m[0] for m in model_output]
-            # return prediction from list[prediction, dist_raw, dist_norm, mask]
-            prediction = model_output[0]
-        elif isinstance(model_output, dict):
+        if isinstance(model_output, dict):
             if model_input.shape[0] == 1:
                 prediction = model_output['pred'][0]
             else:
                 prediction = model_output['pred']
+        elif isinstance(model_output, list):
+            # patchcore model
+            if model_input.shape[0] == 1:
+                model_output = [m[0] for m in model_output]
+            # return prediction from list[prediction, dist_raw, dist_norm, mask]
+            prediction = model_output[0]
         else:
             if model_input.shape[0] == 1:
                 prediction = model_output[0]
             else:
                 prediction = model_output
 
-        if self.model_info['type'] != 'patchcore_cvj' and prediction.ndim >= 3:
+        if prediction.ndim >= 3:
             prediction_list = []
             for i in range(len(prediction)):
                 pred = prediction[i].max()
@@ -297,7 +320,8 @@ class Classifier:
             'inference_time': inference_time
         }
 
-        if self.model_info['type'] == 'patchcore_cvj':
+        if isinstance(model_output, list):
+            # patchcore model
             response['patchcore_cvj_raw'] = model_output[1].tolist()
             response['patchcore_cvj_normalized'] = model_output[2].tolist()
 

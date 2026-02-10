@@ -25,11 +25,10 @@ from mlflow.utils.docstring_utils import format_docstring, LOG_MODEL_PARAM_DOCS
 from mlflow.utils.model_utils import _validate_and_prepare_target_save_path
 from mlflow.tracking._model_registry import DEFAULT_AWAIT_MAX_SLEEP_SECONDS
 import onnxruntime
-
 import faiss
+
 from config import (
     provider,
-    warm_up,
     faiss_no_use_gpu,
     PROV_TRT,
     PROV_VINO,
@@ -77,6 +76,7 @@ def log_model(
     artifact_path,
     signature: ModelSignature = None,
     metadata = None,
+    save_as_external_data = True,
 ):
     """
     :param onnx_model: ONNX model to be saved.
@@ -103,6 +103,7 @@ def log_model(
         signature=signature,
         await_registration_for=DEFAULT_AWAIT_MAX_SLEEP_SECONDS,
         metadata=new_metadata,
+        save_as_external_data=save_as_external_data,
     )
 
 
@@ -113,6 +114,7 @@ def save_model(
     path,
     mlflow_model=None,
     signature=None,
+    save_as_external_data=True,
 ):
     """
     :param onnx_model: ONNX model to be saved.
@@ -134,7 +136,7 @@ def save_model(
 
     # Save onnx-model
     if Version(onnx.__version__) >= Version("1.9.0"):
-        onnx.save_model(onnx_model, model_data_path, save_as_external_data=True)
+        onnx.save_model(onnx_model, model_data_path, save_as_external_data=save_as_external_data)
     else:
         onnx.save_model(onnx_model, model_data_path)
 
@@ -238,7 +240,7 @@ class _OnnxModelWrapper:
         # dummy predict
         input_shape = model_meta.flavors.get(FLAVOR_NAME)['input_shape']
         dummy_data = np.zeros((1, *input_shape, 3), dtype=np.float32)
-        _, _ = self.rt.run(self.output_names, {self.inputs[0][0]: dummy_data})
+        _ = self.rt.run(self.output_names, {self.inputs[0][0]: dummy_data})
         """
 
         print(f"[PATCHCORE] load time: {time.time() - start_tm}")
@@ -281,7 +283,6 @@ class _OnnxModelWrapper:
 
         scores_norm = 0.5 * scores / self.patchcore_threshold
         scores_norm[scores_norm > 1.0] = 1.0
-        #scores_norm = np.stack([scores_norm if i != self.patchcore_index else 1-scores_norm for i in range(predicts.shape[1])], axis=1)
 
         return predicts, scores, scores_norm, masks
 
