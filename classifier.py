@@ -287,7 +287,7 @@ class Classifier:
                 prediction = model_output['pred'][0]
             else:
                 prediction = model_output['pred']
-        elif isinstance(model_output, list):
+        elif isinstance(model_output, (list, tuple)):
             # patchcore model
             if model_input.shape[0] == 1:
                 model_output = [m[0] for m in model_output]
