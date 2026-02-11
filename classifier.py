@@ -279,19 +279,18 @@ class Classifier:
         elif hasattr(self.model, 'run'):
             output_names = [outp.name for outp in self.model.get_outputs()]
             input = self.model.get_inputs()[0]
-            model_output = self.model.run(output_names, {input.name: model_input})[0]
+            model_output = self.model.run(output_names, {input.name: model_input})
 
         # Separate by type of output
-        if isinstance(model_output, dict):
-            if model_input.shape[0] == 1:
-                prediction = model_output['pred'][0]
-            else:
-                prediction = model_output['pred']
-        elif isinstance(model_output, (list, tuple)):
-            # patchcore model
+        if isinstance(model_output, (dict, list, tuple)):
+            if isinstance(model_output, dict):
+                # dict -> list
+                model_output = [m for m in model_output.values()]
+
             if model_input.shape[0] == 1:
                 model_output = [m[0] for m in model_output]
-            # return prediction from list[prediction, dist_raw, dist_norm, mask]
+
+            # (list, tuple) -> ndarray
             prediction = model_output[0]
         else:
             if model_input.shape[0] == 1:
@@ -314,9 +313,10 @@ class Classifier:
         }
 
         if isinstance(model_output, (list, tuple)):
-            # patchcore model
-            response['patchcore_cvj_raw'] = model_output[1].tolist()
-            response['patchcore_cvj_normalized'] = model_output[2].tolist()
+            if self.model_info['type'] == 'patchcore_cvj':
+                # patchcore model
+                response['patchcore_cvj_raw'] = model_output[1].tolist()
+                response['patchcore_cvj_normalized'] = model_output[2].tolist()
 
         # Add class name if class names available
         if 'class_names' in self.model_info:

@@ -17,7 +17,7 @@ RUN set -ex \
   && pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl faiss-1.7.4-py3-none-any.whl \
   && rm -r *.whl ~/.cache
 
-COPY --parents *.py mlflow_patchcore/ .
+COPY *.py .
 
 ENV LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
 
