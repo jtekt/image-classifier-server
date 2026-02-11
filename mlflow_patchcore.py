@@ -71,13 +71,6 @@ class _OnnxModelWrapper:
         self.patchcore_threshold = float(model_meta.metadata.get('patchcore_threshold', '1.0'))
         self.patchcore_index = model_meta.metadata.get('patchcore_class_index', 0)
 
-        """
-        # dummy predict
-        input_shape = model_meta.flavors.get(FLAVOR_NAME)['input_shape']
-        dummy_data = np.zeros((1, *input_shape, 3), dtype=np.float32)
-        _ = self.rt.run(self.output_names, {self.inputs[0][0]: dummy_data})
-        """
-
         print(f"[PATCHCORE] load time: {time.time() - start_tm}")
 
     def predict(self, data):
