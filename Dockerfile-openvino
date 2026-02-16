@@ -11,7 +11,7 @@ RUN set -ex \
 
 USER onnxruntimedev
 
-COPY --chown=onnxruntimedev:onnxruntimedev requirements.txt .
+COPY --chown=onnxruntimedev:onnxruntimedev requirements.txt ./
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/onnxruntimedev/.local/bin
 
@@ -21,7 +21,7 @@ RUN set -ex \
     && pip3 install -r requirements.txt \
     && rm -r ~/.cache
 
-COPY --chown=onnxruntimedev:onnxruntimedev *.py .
+COPY --chown=onnxruntimedev:onnxruntimedev *.py ./
 
 EXPOSE 80
 
