@@ -16,11 +16,9 @@ COPY --chown=onnxruntimedev:onnxruntimedev requirements.txt .
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/onnxruntimedev/.local/bin
 
 RUN set -ex \
-    && grep -v faiss requirements.txt > requirements-openvino.txt \
-    && echo faiss-cpu >> requirements-openvino.txt \
-    && echo 'tensorflow==2.12.0' >> requirements-openvino.txt \
+    && echo 'tensorflow==2.12.0' >> requirements.txt \
     && pip3 install --upgrade pip \
-    && pip3 install -r requirements-openvino.txt \
+    && pip3 install -r requirements.txt \
     && rm -r ~/.cache
 
 COPY --chown=onnxruntimedev:onnxruntimedev *.py .

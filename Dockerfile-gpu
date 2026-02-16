@@ -2,17 +2,22 @@ FROM tensorflow/tensorflow:2.12.0-gpu
 
 WORKDIR /usr/src/app
 
-COPY . .
+COPY requirements.txt .
 
-RUN mkdir ./model
+RUN set -ex \
+    && apt-get update \
+    && apt-get install -y cmake libgl1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && grep -v faiss requirements.txt > requirements-gpu.txt \
+    && echo  faiss-gpu >> requirements-gpu.txt \
+    && echo  onnxruntime-gpu==1.15.0 >> requirements-gpu.txt \
+    && pip3 install --upgrade pip \
+    && pip3 install -r requirements-gpu.txt \
+    && rm -r ~/.cache
 
-RUN apt-get update
-RUN apt-get install -y cmake libgl1
-
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
-RUN pip3 install onnxruntime-gpu==1.15.0
+COPY *.py .
 
 EXPOSE 80
 
-CMD uvicorn main:app --host 0.0.0.0 --port 80
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
