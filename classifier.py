@@ -12,13 +12,12 @@ import onnxruntime
 import mlflow
 
 from config import (
-    mlflow_tracking_uri, provider, warm_up,
+    mlflow_tracking_uri, provider, warm_up, warm_up_batch_size,
     class_names, mlflow_model_name, mlflow_model_version,
     PROV_TRT,
     PROV_VINO,
 )
 import mlflow_patchcore
-
 
 if mlflow_tracking_uri:
     mlflow.set_tracking_uri(mlflow_tracking_uri)
@@ -253,7 +252,7 @@ class Classifier:
     def warm_up(self):
         initial_startup_time_start = time()
         # make dummy data
-        model_input = np.zeros((1, *self.target_size), dtype='float32')
+        model_input = np.zeros((warm_up_batch_size, *self.target_size), dtype='float32')
         # predict
         if hasattr(self.model, 'predict'):
             _ = self.model.predict(model_input)
