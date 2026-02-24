@@ -234,7 +234,7 @@ class Classifier:
             self.model_info['format'] = 'other'
 
 
-    async def resize_image(self, img_array):
+    def resize_image(self, img_array):
 
         if self.model_info['format'] == 'NCHW':
             img_array = tf.image.resize(img_array, self.target_size[1:3], method="bilinear").numpy()
@@ -254,23 +254,23 @@ class Classifier:
         # make dummy data
         model_input = np.zeros((warm_up_batch_size, *self.target_size), dtype='float32')
         # predict
-        if hasattr(self.model, 'predict'):
-            _ = self.model.predict(model_input)
-        elif hasattr(self.model, 'run'):
-            output_names = [outp.name for outp in self.model.get_outputs()]
-            input = self.model.get_inputs()[0]
-            _ = self.model.run(output_names, {input.name: model_input})[0]
+        for i in range(5):
+            res = self.predict(model_input)
+            print(f'[AI] warm up: {res["inference_time"]:5.3}')
         # Separate by type of output
         initial_startup_time = time() - initial_startup_time_start
         print('[AI] The initial startup of model is done.')
         print('[AI] Initial startup time:', initial_startup_time, 's')
         return
 
-    async def predict(self, file):
+    def predict(self, file):
 
         inference_start_time = time()
 
-        model_input = await self.resize_image(file)
+        if ! self.model_loaded:
+            raise Exception("No loaded model")
+
+        model_input = self.resize_image(file)
 
         # Separate by existing functions
         if hasattr(self.model, 'predict'):

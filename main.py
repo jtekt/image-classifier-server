@@ -72,7 +72,11 @@ async def predict(request: Request):
     else:
         return error(400, 'content type not supported')
 
-    result = await classifier.predict(img_list)
+    try:
+        result = classifier.predict(img_list)
+    except Exception as e:
+        print("Internal Error:", str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
     return result
 
