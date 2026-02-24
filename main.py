@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list
+from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list, octet_to_image_list
 import zipfile
 import io
 from os import makedirs
@@ -69,6 +69,9 @@ async def predict(request: Request):
         payload = await request.json()
         img_list = await base64_to_image_list(payload["images"])
     
+    elif content_type == "application/octet-stream":
+        img_list = octet_to_image_list(await request.body())
+
     else:
         return error(400, 'content type not supported')
 
