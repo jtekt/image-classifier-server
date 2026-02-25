@@ -267,7 +267,7 @@ class Classifier:
 
         inference_start_time = time()
 
-        if ! self.model_loaded:
+        if not self.model_loaded:
             raise Exception("No loaded model")
 
         model_input = self.resize_image(file)
