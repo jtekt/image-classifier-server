@@ -7,3 +7,4 @@ Pillow
 mlflow
 onnx==1.14.0
 faiss-cpu
+opencv-python-headless

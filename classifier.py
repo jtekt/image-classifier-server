@@ -10,6 +10,7 @@ import numpy as np
 import yaml
 import onnxruntime
 import mlflow
+import cv2
 
 from config import (
     mlflow_tracking_uri, provider, warm_up, warm_up_batch_size,
@@ -237,10 +238,12 @@ class Classifier:
     def resize_image(self, img_array):
 
         if self.model_info['format'] == 'NCHW':
-            img_array = tf.image.resize(img_array, self.target_size[1:3], method="bilinear").numpy()
+            resize_size = (self.target_size[2], self.target_size[1]) # (w, h) for cv2.resize()
+            img_array = np.stack([cv2.resize(img, resize_size) for img in img_array.astype(np.float32)])
             img_array = img_array.transpose((0, 3, 1, 2)) / 255.0
         else:
-            img_array = tf.image.resize(img_array, self.target_size[0:2], method="bilinear").numpy()
+            resize_size = (self.target_size[1], self.target_size[0]) # (w, h) for cv2.resize()
+            img_array = np.stack([cv2.resize(img, resize_size) for img in img_array.astype(np.float32)])
 
         return img_array
 
