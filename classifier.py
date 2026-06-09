@@ -164,18 +164,28 @@ class Classifier:
         print(f'[AI] ONNX Runtime Providers: {str(providers)}')
         
     def get_target_size(self):
-        # Separate by the method of getting input size
-        if hasattr(self.model, 'input'):
-            self.target_size = self.model.input.shape[1:4].as_list()
 
-        elif hasattr(self.model, 'metadata'):
-            input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
-            self.target_size = input_shape[1:4]
-            
-        elif hasattr(self.model, 'get_inputs'):
+    # Case 1 — Keras
+        if hasattr(self.model, "input"):
+            shape = self.model.input.shape
+            self.target_size = list(shape[1:4])
+
+    # Case 2 — MLflow PyFunc with signature
+        elif hasattr(self.model, "metadata") and self.model.metadata.signature:
+            signature = self.model.metadata.signature
+            input_schema = signature.inputs
+            tensor_spec = input_schema.inputs[0]
+            shape = tensor_spec.shape
+            self.target_size = list(shape[1:4])
+
+    # Case 3 — Raw ONNX
+        elif hasattr(self.model, "get_inputs"):
             input_shape = self.model.get_inputs()[0].shape
             self.target_size = input_shape[1:4]
 
+        else:
+            raise ValueError("Unable to determine model input shape")
+    # ORIGINAL LOGIC ALSO
         if self.target_size.index(min(self.target_size)) == 0:
             print('[AI] This model is channels first.')
             self.model_info['format'] = 'NCHW'
@@ -185,7 +195,6 @@ class Classifier:
         else:
             print('[AI] This model is from other.')
             self.model_info['format'] = 'other'
-
         
     async def resize_image(self, img_array):
 

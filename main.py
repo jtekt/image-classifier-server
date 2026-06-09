@@ -52,28 +52,31 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(request: Request):
-    content_type = request.headers.get("content-type").split(";", 1)[0].strip().lower()
+async def predict(
+    image: UploadFile = File(None),
+    request: Request = None
+):
+    img_list = []
 
-    if content_type == "multipart/form-data":
+    # Case 1 — Swagger upload
+    if image is not None:
+        img_array = load_image_from_request(await image.read())
+        img_list.append(img_array)
+
+    # Case 2 — Frontend FormData (multiple images possible)
+    elif request is not None:
         form = await request.form()
-        img_list = []
-
         for key, val in form.items():
             if key.startswith("image"):
                 img_array = load_image_from_request(await val.read())
                 img_list.append(img_array)
-        img_list = np.stack(img_list, axis=0)
 
-    elif content_type == "application/json":
-        payload = await request.json()
-        img_list = await base64_to_image_list(payload["images"])
-    
-    else:
-        return error(400, 'content type not supported')
+    if not img_list:
+        raise HTTPException(status_code=400, detail="No image provided")
+
+    img_list = np.stack(img_list, axis=0)
 
     result = await classifier.predict(img_list)
-
     return result
 
 @app.post("/model")
