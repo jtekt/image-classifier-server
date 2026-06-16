@@ -58,19 +58,42 @@ async def predict(
 ):
     img_list = []
 
-    # Case 1 — Swagger upload
+    # Case 1 — Swagger single file upload
+
     if image is not None:
-        img_array = load_image_from_request(await image.read())
-        img_list.append(img_array)
+        try:
+            img_array = load_image_from_request(await image.read())
+            img_list.append(img_array)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image file")
 
-    # Case 2 — Frontend FormData (multiple images possible)
+
+    # Case 2 — Multipart form (GUI FormData)
+
     elif request is not None:
-        form = await request.form()
-        for key, val in form.items():
-            if key.startswith("image"):
-                img_array = load_image_from_request(await val.read())
-                img_list.append(img_array)
+        content_type = request.headers.get("content-type", "")
 
+        # Multipart form (multiple images)
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            for key, val in form.items():
+                if key.startswith("image"):
+                    img_array = load_image_from_request(await val.read())
+                    img_list.append(img_array)
+
+        # Case 3 — JSON base64
+    
+        elif "application/json" in content_type:
+            payload = await request.json()
+            if "images" not in payload:
+                raise HTTPException(status_code=400, detail="Missing 'images' field in JSON payload")
+
+            img_list = await base64_to_image_list(payload["images"])
+
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported content type")
+
+    # Final validation
     if not img_list:
         raise HTTPException(status_code=400, detail="No image provided")
 
