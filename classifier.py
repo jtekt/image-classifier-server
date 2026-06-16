@@ -164,7 +164,10 @@ class Classifier:
     def get_target_size(self):
         # Separate by the method of getting input size
         if hasattr(self.model, 'input'):
-            self.target_size = self.model.input.shape[1:4].as_list()
+            if isinstance(self.model.input.shape, (list, tuple)):
+                self.target_size = self.model.input.shape[1:4]
+            else:
+                self.target_size = self.model.input.shape[1:4].as_list()
 
         elif hasattr(self.model, 'metadata'):
             input_shape = self.model.metadata.signature.inputs.to_dict()[0]['tensor-spec']['shape']
