@@ -2,17 +2,16 @@ FROM 732469118990.dkr.ecr.ap-northeast-1.amazonaws.com/tensorflow:2.19.1-cuda12.
 
 WORKDIR /usr/src/app
 
+COPY requirements.txt .
+
+RUN set -eu \
+  && mkdir ./model \
+  && pip3 install --no-cache-dir --upgrade pip \
+  && pip3 install --no-cache-dir -r requirements.txt \
+  && pip3 install --no-cache-dir onnxruntime-gpu
+
 COPY . .
-
-RUN mkdir ./model
-
-RUN apt-get update
-RUN apt-get install -y cmake libgl1
-
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
-RUN pip3 install onnxruntime-gpu==1.15.0
 
 EXPOSE 80
 
-CMD uvicorn main:app --host 0.0.0.0 --port 80
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

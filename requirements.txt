@@ -1,9 +1,8 @@
-protobuf==5.29.6
+protobuf
 fastapi
 uvicorn
 python-multipart
 python-dotenv
 Pillow
 mlflow
-onnx==1.17.0
-onnxruntime==1.20.0
+onnx
