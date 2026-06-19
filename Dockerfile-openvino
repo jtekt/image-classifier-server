@@ -1,12 +1,11 @@
 FROM openvino/ubuntu24_runtime:2026.2.1
 
-WORKDIR /usr/src/app
-
 USER root
 
 COPY requirements.txt .
 
 RUN set -eu \
+  && echo faiss >> requirements.txt \
   && echo tensorflow==2.19.1 >> requirements.txt \
   && echo onnxruntime-openvino >> requirements.txt \
   && pip install --no-cache-dir --upgrade pip \

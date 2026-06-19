@@ -1,13 +1,23 @@
 from os import environ
 from dotenv import load_dotenv
+from distutils.util import strtobool
 
 load_dotenv()
 
 prevent_model_update = environ.get('PREVENT_MODEL_UPDATE')
 mlflow_tracking_uri = environ.get('MLFLOW_TRACKING_URI')
 provider = environ.get('ONNXRUNTIME_PROVIDERS')
-warm_up = environ.get('WARM_UP')
+warm_up = strtobool(environ.get('WARM_UP'))
+warm_up_batch_size = int(environ.get('WARM_UP_BATCH_SIZE', 1))
 
 class_names = environ.get('CLASS_NAMES')
 mlflow_model_name = environ.get('MLFLOW_MODEL_NAME')
 mlflow_model_version = environ.get('MLFLOW_MODEL_VERSION')
+
+faiss_no_use_gpu = False
+
+PROV_TRT  = "TensorrtExecutionProvider"
+#PROV_CUDA = "CUDAExecutionProvider"
+#PROV_CPU  = "CPUExecutionProvider"
+PROV_VINO = "OpenVINOExecutionProvider"
+

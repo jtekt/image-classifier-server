@@ -9,11 +9,14 @@ RUN set -eu \
   && mkdir ./model \
   && pip3 install --no-cache-dir --upgrade pip \
   && pip3 install --no-cache-dir -r requirements.txt \
-  && wget -q https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -O onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl \
-  && pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl \
-  && rm onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl
+  && curl -L https://nvidia.box.com/shared/static/mvdcltm9ewdy2d5nurkiqorofz1s53ww.whl -o onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl \
+  && curl -O http://10.115.1.14/kano/image-classifier-server-patchcore_cvj/-/raw/master/faiss-1.7.4-py3-none-any.whl \
+  && pip3 install onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl faiss-1.7.4-py3-none-any.whl \
+  && rm onnxruntime_gpu-1.15.1-cp38-cp38-linux_aarch64.whl faiss-1.7.4-py3-none-any.whl
 
 COPY . .
+
+ENV LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
 
 EXPOSE 80
 

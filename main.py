@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list
+from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list, octet_to_image_list
 import zipfile
 import io
 from os import makedirs
@@ -82,13 +82,18 @@ async def predict(
                     img_list.append(img_array)
 
         # Case 3 — JSON base64
-    
+
         elif "application/json" in content_type:
             payload = await request.json()
             if "images" not in payload:
                 raise HTTPException(status_code=400, detail="Missing 'images' field in JSON payload")
 
             img_list = await base64_to_image_list(payload["images"])
+
+        # Case 4 — Raw image
+
+        elif content_type == "application/octet-stream":
+            img_list = octet_to_image_list(await request.body())
 
         else:
             raise HTTPException(status_code=400, detail="Unsupported content type")
@@ -99,7 +104,12 @@ async def predict(
 
     img_list = np.stack(img_list, axis=0)
 
-    result = await classifier.predict(img_list)
+    try:
+        result = await classifier.predict(img_list)
+    except Exception as e:
+        print("Internal Error:", str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
     return result
 
 @app.post("/model")

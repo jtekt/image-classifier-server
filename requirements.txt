@@ -6,3 +6,4 @@ python-dotenv
 Pillow
 mlflow
 onnx
+opencv-python-headless
