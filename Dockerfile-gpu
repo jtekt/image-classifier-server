@@ -4,11 +4,12 @@ WORKDIR /usr/src/app
 
 COPY requirements.txt .
 
+# onnxruntime-gpu>=1.27はCUDA13が必要なため，CUDA12で動く1.26以下を使用
 RUN set -eu \
   && mkdir ./model \
+  && echo 'onnxruntime-gpu<1.27' >> requirements.txt \
   && pip3 install --no-cache-dir --upgrade pip \
-  && pip3 install --no-cache-dir -r requirements.txt \
-  && pip3 install --no-cache-dir onnxruntime-gpu
+  && pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
