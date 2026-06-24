@@ -25,6 +25,8 @@ if mlflow_tracking_uri:
 class Classifier:
 
     def __init__(self):
+        self.gpu_memory_limit()
+
         self.model_path = pathlib.Path("./model")
         self.model_loaded = False
 
@@ -50,11 +52,22 @@ class Classifier:
                 print('[AI] Failed to load model')
                 print(e)
 
+    def gpu_memory_limit(self):
+        # get GPU device list
+        pdevices = tf.config.list_physical_devices("GPU")
+        print(f"[GPU] num: {len(pdevices)}")
+
+        if len(pdevices) > 0:
+            # there is some GPU
+            print(f"[GPU] Limit GPU memory usage to the required amount")
+            tf.config.experimental.set_memory_growth(pdevices[0], True)
+
+        return
+
     def readModelInfo(self):
         file_path = str(self.model_path / "modelInfo.json")
         with open(file_path, 'r') as openfile:
             return json.load(openfile)
-
 
     def load_model_from_mlflow(self, model_name, model_version):
         # load any format model mlflow

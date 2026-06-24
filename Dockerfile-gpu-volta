@@ -1,0 +1,30 @@
+FROM 732469118990.dkr.ecr.ap-northeast-1.amazonaws.com/tensorflow:2.19.1-cuda12.6
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt .
+
+# onnxruntime-gpuはCUDA12で動くver 1.26以下を使用
+# tensorrt-cu12はvoltaサポートがある10.4以下を使用
+RUN set -eu \
+  && mkdir ./model \
+  && pip3 config set global.index-url http://10.56.254.1:3141/root/pypi/+simple/ \
+  && pip3 config set global.trusted-host 10.56.254.1 \
+  && echo 'onnxruntime-gpu<1.27' >> requirements.txt \
+  && echo 'tensorrt-cu12<10.5' >> requirements.txt \
+  && echo faiss-gpu-cu12 >> requirements.txt \
+  && pip3 install --no-cache-dir --upgrade pip \
+  && pip3 install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# tensorrt 10.4ではライブラリロードでエラーが出るため次の設定を追加
+RUN set -eu \
+  && ls -d /usr/local/lib/python3.11/site-packages/nvidia/*/lib > /etc/ld.so.conf.d/cuda_package.conf \
+  && ls -d /usr/local/lib/python3.11/site-packages/tensorrt_libs >> /etc/ld.so.conf.d/cuda_package.conf \
+  && ldconfig
+ENV GLIBC_TUNABLES=glibc.rtld.execstack=2
+
+EXPOSE 80
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

@@ -14,6 +14,7 @@ from typing import List, Optional, Tuple
 from PIL import Image
 import base64
 import numpy as np
+import traceback
 
 classifier = Classifier()
 
@@ -105,9 +106,10 @@ async def predict(
     img_list = np.stack(img_list, axis=0)
 
     try:
-        result = await classifier.predict(img_list)
+        result = classifier.predict(img_list)
     except Exception as e:
         print("Internal Error:", str(e))
+        print(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
     return result

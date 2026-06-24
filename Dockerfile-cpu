@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN set -eu \
   && mkdir ./model \
   && echo onnxruntime >> requirements.txt \
-  && echo faiss >> requirements.txt \
+  && echo faiss-cpu >> requirements.txt \
   && pip3 install --no-cache-dir --upgrade pip \
   && pip3 install --no-cache-dir --ignore-installed -r requirements.txt
 
