@@ -6,13 +6,17 @@ COPY requirements.txt .
 
 # onnxruntime-gpuはCUDA12で動くver 1.26以下を使用
 # tensorrt-cu12はver 10以下が必要
-RUN set -eu \
+# faiss-gpuは対応GPUの多い1.14.3以降
+RUN set -eux \
   && mkdir ./model \
   && echo 'onnxruntime-gpu<1.27' >> requirements.txt \
+  && echo 'faiss-gpu==1.14.3' >> requirements.txt \
   && echo 'tensorrt-cu12<11' >> requirements.txt \
-  && echo faiss-gpu-cu12 >> requirements.txt \
   && pip3 install --no-cache-dir --upgrade pip \
-  && pip3 install --no-cache-dir -r requirements.txt
+  && pip3 install --no-cache-dir -r requirements.txt \
+  && ls -d /usr/local/lib/python3.11/site-packages/nvidia/*/lib > /etc/ld.so.conf.d/cuda_package.conf \
+  && ls -d /usr/local/lib/python3.11/site-packages/tensorrt_libs >> /etc/ld.so.conf.d/cuda_package.conf \
+  && ldconfig
 
 COPY . .
 

@@ -1,6 +1,0 @@
-nvidia-cuda-runtime-cu11 == 11.8.89
-nvidia-cudnn-cu11        == 8.7.0.84
-nvidia-cublas-cu11       == 11.11.3.6
-nvidia-curand-cu11       == 10.3.0.86
-nvidia-cublas-cu11       == 11.11.3.6
-nvidia-cufft-cu11        == 10.9.0.58
