@@ -8,8 +8,6 @@ COPY requirements.txt .
 # tensorrt-cu12はvoltaサポートがある10.4以下を使用
 RUN set -eu \
   && mkdir ./model \
-  && pip3 config set global.index-url http://10.56.254.1:3141/root/pypi/+simple/ \
-  && pip3 config set global.trusted-host 10.56.254.1 \
   && echo 'onnxruntime-gpu<1.27' >> requirements.txt \
   && echo 'tensorrt-cu12<10.5' >> requirements.txt \
   && echo faiss-gpu-cu12 >> requirements.txt \

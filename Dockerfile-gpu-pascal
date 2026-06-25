@@ -12,8 +12,6 @@ COPY requirements-cuda11.txt .
 
 RUN set -eu \
   && mkdir ./model \
-  && pip3 config set global.index-url http://10.56.254.1:3141/root/pypi/+simple/ \
-  && pip3 config set global.trusted-host 10.56.254.1 \
   && echo 'onnxruntime-gpu==1.17.*' >> requirements.txt \
   && echo 'numpy<2.0' >> requirements.txt \
   && echo faiss-gpu-cu12 >> requirements.txt \
