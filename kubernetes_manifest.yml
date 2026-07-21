@@ -35,7 +35,7 @@ spec:
               cpu: 2000m
           env:
             - name: MLFLOW_TRACKING_URI
-              value: http://mlflow.mlflow:5000
+              value: http://mlflowv3.mlflow:5000
       #     volumeMounts:
       #       - mountPath: /usr/src/app/model
       #         name: model

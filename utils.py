@@ -57,3 +57,8 @@ async def base64_to_image_list(images_base64):
     np_img_list = [base64_to_numpy(img_base64) for img_base64 in images_base64]
     np_img_list = np.stack(np_img_list, axis=0)
     return np_img_list
+
+def octet_to_image_list(raw_bytes):
+    buf = io.BytesIO(raw_bytes)
+    np_data = np.load(buf)
+    return np_data

@@ -1,0 +1,37 @@
+# pascal/volta対応
+FROM 732469118990.dkr.ecr.ap-northeast-1.amazonaws.com/tensorflow:2.19.1-cuda12.6
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt .
+
+# pascal対応のためTensorRTはver 8以下
+# TensorRT 8だとcuda11必要
+# TensorRT 8だと，onnxruntime-gpu 1.17以下
+# pascal対応のためfaiss-gpu-cu12<1.9利用
+
+# tensorrt8インストール時に"ps"コマンドが必要
+RUN set -eux \
+  && apt update \
+  && apt install -y procps \
+  && apt clean \
+  && rm -r /var/lib/apt/lists \
+  && mkdir ./model \
+  && echo 'faiss-gpu-cu12<1.9' >> requirements.txt \
+  && echo 'tensorrt==8.*' >> requirements.txt \
+  && echo 'nvidia-cudnn-cu11==8.9.*' >> requirements.txt \
+  && pip3 install --no-cache-dir --upgrade pip \
+  && pip3 install --no-cache-dir -r requirements.txt \
+  && pip3 install --no-cache-dir --index-url https://pypi.jtektrnd.net/ onnxruntime-gpu==1.17.3 \
+  && ls -d /usr/local/lib/python3.11/site-packages/nvidia/*/lib > /etc/ld.so.conf.d/cuda_package.conf \
+  && ls -d /usr/local/lib/python3.11/site-packages/tensorrt_libs >> /etc/ld.so.conf.d/cuda_package.conf \
+  && ldconfig
+
+# tensorrt8ではライブラリロードでエラーが出るため次の設定を追加
+ENV GLIBC_TUNABLES=glibc.rtld.execstack=2
+
+COPY . .
+
+EXPOSE 80
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]

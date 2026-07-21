@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 from classifier import Classifier
-from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list
+from utils import getGpus, lookDeeperIfNeeded, load_image_from_request, base64_to_image_list, octet_to_image_list
 import zipfile
 import io
 from os import makedirs
@@ -14,6 +14,7 @@ from typing import List, Optional, Tuple
 from PIL import Image
 import base64
 import numpy as np
+import traceback
 
 classifier = Classifier()
 
@@ -52,27 +53,64 @@ async def root():
     return response
 
 @app.post("/predict")
-async def predict(request: Request):
-    content_type = request.headers.get("content-type").split(";", 1)[0].strip().lower()
+async def predict(
+    image: UploadFile = File(None),
+    request: Request = None
+):
+    img_list = []
 
-    if content_type == "multipart/form-data":
-        form = await request.form()
-        img_list = []
+    # Case 1 — Swagger single file upload
 
-        for key, val in form.items():
-            if key.startswith("image"):
-                img_array = load_image_from_request(await val.read())
-                img_list.append(img_array)
-        img_list = np.stack(img_list, axis=0)
+    if image is not None:
+        try:
+            img_array = load_image_from_request(await image.read())
+            img_list.append(img_array)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid image file")
 
-    elif content_type == "application/json":
-        payload = await request.json()
-        img_list = await base64_to_image_list(payload["images"])
-    
-    else:
-        return error(400, 'content type not supported')
 
-    result = await classifier.predict(img_list)
+    # Case 2 — Multipart form (GUI FormData)
+
+    elif request is not None:
+        content_type = request.headers.get("content-type", "")
+
+        # Multipart form (multiple images)
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            for key, val in form.items():
+                if key.startswith("image"):
+                    img_array = load_image_from_request(await val.read())
+                    img_list.append(img_array)
+
+        # Case 3 — JSON base64
+
+        elif "application/json" in content_type:
+            payload = await request.json()
+            if "images" not in payload:
+                raise HTTPException(status_code=400, detail="Missing 'images' field in JSON payload")
+
+            img_list = await base64_to_image_list(payload["images"])
+
+        # Case 4 — Raw image
+
+        elif content_type == "application/octet-stream":
+            img_list = octet_to_image_list(await request.body())
+
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported content type")
+
+    # Final validation
+    if not img_list:
+        raise HTTPException(status_code=400, detail="No image provided")
+
+    img_list = np.stack(img_list, axis=0)
+
+    try:
+        result = classifier.predict(img_list)
+    except Exception as e:
+        print("Internal Error:", str(e))
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
 
     return result
 
